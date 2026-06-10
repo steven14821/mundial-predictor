@@ -4,8 +4,10 @@ import com.mundial.predictor.model.Role;
 import com.mundial.predictor.model.User;
 import com.mundial.predictor.model.Match;
 import com.mundial.predictor.model.Phase;
+import com.mundial.predictor.model.Prediction;
 import com.mundial.predictor.repository.MatchRepository;
 import com.mundial.predictor.repository.UserRepository;
+import com.mundial.predictor.repository.PredictionRepository;
 import com.mundial.predictor.service.WorldCupSyncService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -25,6 +27,7 @@ public class DataInitializer {
     @Bean
     CommandLineRunner seedUsers(
             UserRepository userRepository,
+            PredictionRepository predictionRepository,
             MatchRepository matchRepository,
             WorldCupSyncService worldCupSyncService,
             PasswordEncoder passwordEncoder,
@@ -37,9 +40,12 @@ public class DataInitializer {
             @Value("${app.seed.world-cup.enabled:true}") boolean worldCupSeedEnabled
     ) {
         return args -> {
+            // Eliminar usuarios de prueba antiguos ("jugador1" y "jugador2")
+            cleanUpOldUsers(userRepository, predictionRepository);
+
             createUserIfMissing(userRepository, passwordEncoder, adminUsername, adminPassword, Role.ADMIN, "Administrador");
-            createUserIfMissing(userRepository, passwordEncoder, player1Username, player1Password, Role.PLAYER, "Jugador 1");
-            createUserIfMissing(userRepository, passwordEncoder, player2Username, player2Password, Role.PLAYER, "Jugador 2");
+            createUserIfMissing(userRepository, passwordEncoder, player1Username, player1Password, Role.PLAYER, player1Username);
+            createUserIfMissing(userRepository, passwordEncoder, player2Username, player2Password, Role.PLAYER, player2Username);
 
             if (worldCupSeedEnabled && matchRepository.count() == 0) {
                 matchRepository.saveAll(buildWorldCup2026Schedule());
@@ -51,6 +57,21 @@ public class DataInitializer {
         };
     }
 
+    private void cleanUpOldUsers(UserRepository userRepository, PredictionRepository predictionRepository) {
+        List<String> oldUsernames = List.of("jugador1", "jugador2");
+        for (String oldUsername : oldUsernames) {
+            userRepository.findByUsername(oldUsername).ifPresent(user -> {
+                // Eliminar sus predicciones para evitar violaciones de clave foránea
+                List<Prediction> predictions = predictionRepository.findByUser(user);
+                if (!predictions.isEmpty()) {
+                    predictionRepository.deleteAll(predictions);
+                }
+                userRepository.delete(user);
+                System.out.println("[DB] Cleanup: Usuario antiguo '" + oldUsername + "' eliminado.");
+            });
+        }
+    }
+
     private void createUserIfMissing(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
@@ -59,12 +80,21 @@ public class DataInitializer {
             Role role,
             String displayName
     ) {
-        if (userRepository.findByUsername(username).isPresent()) {
-            return;
-        }
-
-        User user = new User(username, passwordEncoder.encode(rawPassword), role, displayName);
-        userRepository.save(user);
+        userRepository.findByUsername(username).ifPresentOrElse(
+            user -> {
+                // Si el usuario ya existe pero tiene un displayName genérico antiguo, se actualiza
+                if ("Jugador 1".equals(user.getDisplayName()) || "Jugador 2".equals(user.getDisplayName())) {
+                    user.setDisplayName(displayName);
+                    userRepository.save(user);
+                    System.out.println("[DB] Actualizado displayName para el usuario '" + username + "' a '" + displayName + "'.");
+                }
+            },
+            () -> {
+                User user = new User(username, passwordEncoder.encode(rawPassword), role, displayName);
+                userRepository.save(user);
+                System.out.println("[DB] Creado usuario '" + username + "' con displayName '" + displayName + "'.");
+            }
+        );
     }
 
     private List<Match> buildWorldCup2026Schedule() {
