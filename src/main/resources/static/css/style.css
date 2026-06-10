@@ -794,6 +794,35 @@ body {
   box-shadow: inset 0 -4px 0 var(--color-primary);
 }
 
+.m-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.m-password-wrapper .m-login-input {
+  padding-right: 48px;
+}
+
+.m-password-toggle {
+  position: absolute;
+  right: 14px;
+  top: calc(50% - 2px); /* offset due to border-bottom: 4px */
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-light);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.m-password-toggle:hover {
+  color: var(--color-primary);
+}
+
 .m-login-credentials {
   border-top: 2px solid var(--color-muted);
   padding-top: 18px;
