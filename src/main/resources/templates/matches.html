@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Partidos')}"></head>
+<body>
+<nav th:replace="~{layout :: navbar}"></nav>
+
+<main class="m-main">
+
+    <!-- ══════════════════════════════════════════════════════════
+         PAGE HEADER
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-greeting">
+        <p class="m-greeting__label">Torneo</p>
+        <h1 class="m-greeting__name">Partidos</h1>
+        <p class="m-greeting__sub">Sigue el torneo, el estado de cada partido y el duelo entre jugadores.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         EMPTY STATE
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-section" th:if="${#lists.isEmpty(matches)}">
+        <p class="m-empty">No hay partidos registrados.</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         MATCH LIST
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-section" th:unless="${#lists.isEmpty(matches)}">
+        <div class="m-matches">
+            <article class="m-fixture" th:each="match : ${matches}">
+
+                <!-- Top row: teams + actions -->
+                <div class="m-fixture__top">
+                    <div class="m-fixture__teams">
+                        <span class="m-fixture__team">
+                            <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
+                                 th:src="${match.homeFlag}"
+                                 th:alt="${match.homeTeam}"
+                                 class="m-match__flag"
+                                 width="24" height="18" loading="lazy">
+                            <span th:text="${match.homeTeam}">Local</span>
+                        </span>
+                        <span class="m-match__vs">vs</span>
+                        <span class="m-fixture__team">
+                            <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
+                                 th:src="${match.awayFlag}"
+                                 th:alt="${match.awayTeam}"
+                                 class="m-match__flag"
+                                 width="24" height="18" loading="lazy">
+                            <span th:text="${match.awayTeam}">Visitante</span>
+                        </span>
+                    </div>
+                    <a th:href="@{|/matches/${match.id}|}" class="btn btn-primary btn-sm">Ver detalle</a>
+                </div>
+
+                <!-- Meta row -->
+                <div class="m-match__meta">
+                    <span class="m-match__phase"
+                          th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
+                    <span class="m-match__group"
+                          th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                          th:text="'Grupo ' + ${match.matchGroup}">Grupo A</span>
+                    <span class="m-match__date"
+                          th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</span>
+                    <span class="m-match__group">Hora Colombia</span>
+                </div>
+
+                <!-- Status badges -->
+                <div class="m-fixture__badges">
+                    <span class="m-tag m-tag--neutral" th:text="${match.statusLabel}">Estado</span>
+                    <span class="m-tag m-tag--info" th:if="${predictions.containsKey(match.id)}">Ya predijiste</span>
+                    <span class="m-tag m-tag--warn" th:unless="${predictions.containsKey(match.id)}">Sin prediccion</span>
+                    <span class="m-tag m-tag--score"
+                          th:if="${predictions.containsKey(match.id)}"
+                          th:text="${predictions.get(match.id).predictedHomeScore + ' - ' + predictions.get(match.id).predictedAwayScore}">
+                        0 - 0
+                    </span>
+                </div>
+
+                <!-- Duel footer -->
+                <div class="m-fixture__duel" th:if="${#lists.size(duelPlayers) >= 2}">
+                    <p class="m-fixture__duel-label">Duelo del partido</p>
+                    <div class="m-fixture__duel-grid">
+                        <div class="m-fixture__duel-player"
+                             th:with="firstPrediction=${duelPredictions.get(match.id).get(duelPlayers[0].id)}">
+                            <span class="m-fixture__duel-name"
+                                  th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
+                            <span class="m-fixture__duel-pick"
+                                  th:text="${firstPrediction != null ? firstPrediction.predictedHomeScore + '-' + firstPrediction.predictedAwayScore : 'sin prediccion'}">sin prediccion</span>
+                            <span class="m-tag m-tag--score"
+                                  th:if="${match.finished and firstPrediction != null}"
+                                  th:text="${firstPrediction.pointsEarned + ' pts'}">0 pts</span>
+                        </div>
+
+                        <span class="m-fixture__duel-vs">VS</span>
+
+                        <div class="m-fixture__duel-player m-fixture__duel-player--right"
+                             th:with="secondPrediction=${duelPredictions.get(match.id).get(duelPlayers[1].id)}">
+                            <span class="m-fixture__duel-name"
+                                  th:text="${duelPlayers[1].displayName != null ? duelPlayers[1].displayName : duelPlayers[1].username}">Jugador 2</span>
+                            <span class="m-fixture__duel-pick"
+                                  th:text="${secondPrediction != null ? secondPrediction.predictedHomeScore + '-' + secondPrediction.predictedAwayScore : 'sin prediccion'}">sin prediccion</span>
+                            <span class="m-tag m-tag--score"
+                                  th:if="${match.finished and secondPrediction != null}"
+                                  th:text="${secondPrediction.pointsEarned + ' pts'}">0 pts</span>
+                        </div>
+                    </div>
+                </div>
+
+            </article>
+        </div>
+    </section>
+
+</main>
+
+<div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

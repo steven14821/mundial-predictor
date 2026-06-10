@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Dashboard')}"></head>
+<body>
+<nav th:replace="~{layout :: navbar}"></nav>
+
+<main class="m-main">
+
+    <!-- ══════════════════════════════════════════════════════════
+         GREETING — BLOQUE VERDE ENTERO con "26" gigante de fondo
+         ══════════════════════════════════════════════════════════ -->
+    <div class="m-greeting">
+        <p class="m-greeting-hello">&#9917; Hola</p>
+        <h1 class="m-greeting-name"
+            th:text="${currentUser.displayName != null ? currentUser.displayName : currentUser.username}">
+            Usuario
+        </h1>
+        <p class="m-greeting-sub">Así va el duelo y qué se viene en el torneo.</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         DUEL SCOREBOARD — BLOQUE OSCURO + NÚMEROS GIGANTES
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-section">
+
+        <div class="m-duel-header">
+            <p class="m-duel-eyebrow">Marcador global &mdash; Duelo 1 vs 1</p>
+
+            <p class="m-empty" th:if="${#lists.size(players) < 2}"
+               style="color:rgba(255,255,255,0.4); padding:0 0 28px; border:none; font-style:italic;">
+                Faltan jugadores para mostrar el duelo.
+            </p>
+
+            <div class="m-duel-grid" th:if="${#lists.size(players) >= 2}">
+
+                <!-- ── Jugador izquierda ── -->
+                <div class="m-duel-player">
+                    <div class="m-duel-player-name"
+                         th:text="${players[0].displayName != null ? players[0].displayName : players[0].username}">
+                        Jugador 1
+                    </div>
+                    <div class="m-duel-pts"
+                         th:classappend="${leader != null and (leader.username == players[0].username or leader.displayName == players[0].displayName) ? 'm-duel-pts--leader' : ''}"
+                         th:text="${players[0].totalPoints}">
+                        0
+                    </div>
+                </div>
+
+                <!-- ── VS central ── -->
+                <div class="m-scoreboard">
+                    <span class="m-scoreboard-vs">VS</span>
+                    <span class="m-scoreboard-label">puntos</span>
+                </div>
+
+                <!-- ── Jugador derecha ── -->
+                <div class="m-duel-player m-duel-player--right">
+                    <div class="m-duel-player-name"
+                         th:text="${players[1].displayName != null ? players[1].displayName : players[1].username}">
+                        Jugador 2
+                    </div>
+                    <div class="m-duel-pts"
+                         th:classappend="${leader != null and (leader.username == players[1].username or leader.displayName == players[1].displayName) ? 'm-duel-pts--leader' : ''}"
+                         th:text="${players[1].totalPoints}">
+                        0
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── BARRA ROJA SÓLIDA — Líder ── -->
+        <div class="m-duel-footer">
+            <span class="m-duel-footer-text">&#9650; Líder</span>
+            <span class="m-duel-footer-leader"
+                  th:if="${leader != null}"
+                  th:text="${leader.displayName != null ? leader.displayName : leader.username}">
+                Líder
+            </span>
+            <span class="m-duel-footer-leader" th:if="${leader == null}">Sin líder aún</span>
+            <span class="m-duel-footer-text"
+                  th:if="${scoreGap != null}"
+                  th:text="${scoreGap == 0 ? '¡Empate!' : '+' + scoreGap + ' pts'}">
+                0 pts
+            </span>
+        </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         RANKING — Grid con NÚMEROS GRANDES y líder en BLOQUE VERDE
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-section">
+        <div class="m-section-header">
+            <h2 class="m-section-title">&#127942; Tabla</h2>
+        </div>
+
+        <p class="m-empty" th:if="${#lists.isEmpty(players)}">
+            Todavía no hay jugadores cargados.
+        </p>
+
+        <div class="m-ranking" th:unless="${#lists.isEmpty(players)}">
+            <div class="m-ranking-cell"
+                 th:each="player, stat : ${players}"
+                 th:classappend="${stat.index == 0} ? 'm-ranking-cell--leader' : ''">
+                <span class="m-ranking-pos" th:text="${stat.count}">1</span>
+                <div class="m-ranking-info">
+                    <div class="m-ranking-name"
+                         th:text="${player.displayName != null ? player.displayName : player.username}">
+                        Jugador
+                    </div>
+                    <div class="m-ranking-role" th:text="${player.role}">ROLE</div>
+                </div>
+                <span class="m-ranking-pts" th:text="${player.totalPoints}">0</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PRÓXIMOS PARTIDOS — Cards con borde VERDE y contraste alto
+         ══════════════════════════════════════════════════════════ -->
+    <section class="m-section">
+        <div class="m-section-header">
+            <h2 class="m-section-title">&#128197; Próximos partidos</h2>
+            <a th:href="@{/matches}" class="m-cta">Ver todos</a>
+        </div>
+
+        <p class="m-empty" th:if="${#lists.isEmpty(upcomingMatches)}">
+            No hay partidos programados.
+        </p>
+
+        <div class="m-match-feed" th:unless="${#lists.isEmpty(upcomingMatches)}">
+            <a th:each="match : ${upcomingMatches}"
+               th:href="@{|/matches/${match.id}|}"
+               class="m-match-card">
+
+                <div class="m-match-teams">
+                    <span th:text="${match.homeTeam}">Local</span>
+                    <span class="m-match-vs">vs</span>
+                    <span th:text="${match.awayTeam}">Visitante</span>
+                </div>
+
+                <div class="m-match-meta">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span class="m-phase m-phase--group"
+                              th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">
+                            Fase
+                        </span>
+                        <span class="m-match-date"
+                              th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                              th:text="'Grupo ' + ${match.matchGroup}">
+                            Grupo A
+                        </span>
+                        <span class="m-match-date"
+                              th:text="${#temporals.format(match.matchDate, 'dd/MM HH:mm')}">
+                            01/06 20:00
+                        </span>
+                    </div>
+                    <span class="m-match-status m-match-status--open"
+                          th:text="${match.statusLabel}">
+                        Estado
+                    </span>
+                </div>
+
+            </a>
+        </div>
+    </section>
+
+</main>
+
+<div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

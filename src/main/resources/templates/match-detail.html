@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Detalle del partido')}"></head>
+<body>
+<nav th:replace="~{layout :: navbar}"></nav>
+
+<main class="m-main">
+
+    <!-- Back link -->
+    <a th:href="@{/matches}" class="m-back-link">Volver a partidos</a>
+
+    <!-- Match header -->
+    <section class="m-match-header">
+        <h1 class="m-match-title">
+            <span class="d-inline-flex align-items-center gap-2">
+                <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
+                     th:src="${match.homeFlag}"
+                     th:alt="${match.homeTeam}"
+                     class="team-flag">
+                <span th:text="${match.homeTeam}">Local</span>
+            </span>
+            <span class="m-match-vs">vs</span>
+            <span class="d-inline-flex align-items-center gap-2">
+                <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
+                     th:src="${match.awayFlag}"
+                     th:alt="${match.awayTeam}"
+                     class="team-flag">
+                <span th:text="${match.awayTeam}">Visitante</span>
+            </span>
+        </h1>
+        <p class="m-match-meta">
+            <span th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
+            <span>
+                • <span th:text="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup) ? 'Grupo ' + match.matchGroup : 'Grupo por confirmar'}">Grupo A</span>
+            </span>
+            <span> • </span>
+            <span th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</span>
+            <span> • Hora Colombia</span>
+        </p>
+        <div class="m-match-status-row">
+            <span class="m-match-status m-match-status--badge"
+                  th:text="${match.statusLabel}">
+                Estado
+            </span>
+            <div th:if="${match.finished}" class="m-match-final-score">
+                <span class="m-mono" th:text="${match.homeScore + ' - ' + match.awayScore}">0 - 0</span>
+            </div>
+            <div th:unless="${match.finished}" class="m-match-pending">
+                Pendiente
+            </div>
+        </div>
+    </section>
+
+    <!-- Success/error alerts -->
+    <div th:if="${success}" class="m-alert m-alert--success" th:text="${success}"></div>
+    <div th:if="${error}" class="m-alert m-alert--error" th:text="${error}"></div>
+
+    <!-- Prediction form -->
+    <section class="m-section m-section--prediction">
+        <div class="m-section-header">
+            <h2 class="m-section-title">Tu prediccion</h2>
+        </div>
+
+        <div th:if="${match.locked}" class="m-locked-notice">
+            Este partido ya no acepta predicciones.
+        </div>
+
+        <form th:unless="${match.locked}"
+              th:action="@{|/matches/${match.id}/predict|}"
+              method="post"
+              class="m-prediction-form">
+
+            <div class="m-pred-grid">
+                <div class="m-pred-field">
+                    <label class="m-form-label" th:text="${match.homeTeam}">Local</label>
+                    <input type="number" min="0" name="homeScore" class="m-form-input"
+                           th:value="${myPrediction != null ? myPrediction.predictedHomeScore : ''}" required>
+                </div>
+                <div class="m-pred-field">
+                    <label class="m-form-label" th:text="${match.awayTeam}">Visitante</label>
+                    <input type="number" min="0" name="awayScore" class="m-form-input"
+                           th:value="${myPrediction != null ? myPrediction.predictedAwayScore : ''}" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Guardar prediccion</button>
+
+        </form>
+
+        <div th:if="${match.locked and myPrediction != null}" class="m-pred-locked">
+            Tu prediccion fue
+            <strong th:text="${myPrediction.predictedHomeScore + ' - ' + myPrediction.predictedAwayScore}">
+                0 - 0
+            </strong>.
+        </div>
+    </section>
+
+    <!-- Recent matches -->
+    <div class="m-grid-2 m-grid-2--recent">
+        <!-- Recent matches home -->
+        <section class="m-section">
+            <div class="m-section-header">
+                <h2 class="m-section-title" th:text="${'Historial en simulador - ' + match.homeTeam}">Historial en simulador</h2>
+            </div>
+
+            <div th:if="${#lists.isEmpty(matchContext.homeRecentMatches)}" class="m-empty">
+                Sin datos recientes disponibles.
+            </div>
+
+            <div class="m-match-list" th:unless="${#lists.isEmpty(matchContext.homeRecentMatches)}">
+                <div class="m-match-item" th:each="recentMatch : ${matchContext.homeRecentMatches}">
+                    <div class="m-match-item-info">
+                        <div class="m-match-item-head">
+                            <strong th:text="${recentMatch.opponent}">Rival</strong>
+                        </div>
+                        <div class="m-match-item-sub">
+                            <span th:text="${recentMatch.competition}">Competicion</span>
+                            <span th:text="${recentMatch.venue}">Venue</span>
+                        </div>
+                    </div>
+                    <div class="m-match-item-score">
+                        <span class="m-mono" th:text="${recentMatch.result}">0 - 0</span>
+                        <span class="m-match-item-date" th:text="${recentMatch.utcDateLabel}">Fecha</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="m-section">
+            <div class="m-section-header">
+                <h2 class="m-section-title" th:text="${'Historial en simulador - ' + match.awayTeam}">Historial en simulador</h2>
+            </div>
+
+            <div th:if="${#lists.isEmpty(matchContext.awayRecentMatches)}" class="m-empty">
+                Sin datos recientes disponibles.
+            </div>
+
+            <div class="m-match-list" th:unless="${#lists.isEmpty(matchContext.awayRecentMatches)}">
+                <div class="m-match-item" th:each="recentMatch : ${matchContext.awayRecentMatches}">
+                    <div class="m-match-item-info">
+                        <div class="m-match-item-head">
+                            <strong th:text="${recentMatch.opponent}">Rival</strong>
+                        </div>
+                        <div class="m-match-item-sub">
+                            <span th:text="${recentMatch.competition}">Competicion</span>
+                            <span th:text="${recentMatch.venue}">Venue</span>
+                        </div>
+                    </div>
+                    <div class="m-match-item-score">
+                        <span class="m-mono" th:text="${recentMatch.result}">0 - 0</span>
+                        <span class="m-match-item-date" th:text="${recentMatch.utcDateLabel}">Fecha</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Group standings table -->
+    <section class="m-section">
+        <div class="m-section-header">
+            <h2 class="m-section-title"
+                th:text="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup) ? 'Grupo ' + match.matchGroup : 'Grupo por confirmar'}">
+                Grupo
+            </h2>
+        </div>
+        <p class="m-empty" th:if="${match.matchGroup == null or #strings.isEmpty(match.matchGroup)}">
+            Este partido todavia no trae grupo confirmado, pero te dejamos la tabla base en ceros.
+        </p>
+        <div class="m-table-wrapper">
+            <table class="m-standings-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Seleccion</th>
+                        <th>PJ</th>
+                        <th>PG</th>
+                        <th>PE</th>
+                        <th>PP</th>
+                        <th>GF</th>
+                        <th>GC</th>
+                        <th>DG</th>
+                        <th>Pts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="row : ${matchContext.groupStandings}">
+                        <td th:text="${row.position}">1</td>
+                        <td>
+                            <div class="d-inline-flex align-items-center gap-2">
+                                <img th:if="${row.teamFlag != null and !#strings.isEmpty(row.teamFlag)}"
+                                     th:src="${row.teamFlag}"
+                                     th:alt="${row.teamName}"
+                                     class="team-flag">
+                                <strong th:text="${row.teamName}">Equipo</strong>
+                            </div>
+                        </td>
+                        <td th:text="${row.playedGames}">0</td>
+                        <td th:text="${row.won}">0</td>
+                        <td th:text="${row.draw}">0</td>
+                        <td th:text="${row.lost}">0</td>
+                        <td th:text="${row.goalsFor}">0</td>
+                        <td th:text="${row.goalsAgainst}">0</td>
+                        <td th:text="${row.goalDifference}">0</td>
+                        <td class="m-table-pts" th:text="${row.points}">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Match duel -->
+    <section class="m-section">
+        <div class="m-section-header">
+            <h2 class="m-section-title">Duelo del partido</h2>
+        </div>
+
+        <div th:if="${#lists.isEmpty(duelPlayers)}" class="m-empty">
+            No hay jugadores suficientes para mostrar el duelo.
+        </div>
+
+        <div class="m-duel-list" th:unless="${#lists.isEmpty(duelPlayers)}">
+            <div class="m-duel-row" th:each="player : ${duelPlayers}">
+                <div class="m-duel-player-info">
+                    <strong th:text="${player.displayName != null ? player.displayName : player.username}">
+                        Jugador
+                    </strong>
+                    <div class="m-duel-pts-torneo"
+                         th:text="${player.totalPoints + ' pts en el torneo'}">
+                        0 pts
+                    </div>
+                </div>
+                <div class="m-duel-prediction" th:with="prediction=${predictionsByUser.get(player.id)}">
+                    <span class="m-mono" th:if="${prediction != null}"
+                          th:text="${prediction.predictedHomeScore + ' - ' + prediction.predictedAwayScore}">
+                        0 - 0
+                    </span>
+                    <span class="m-no-pred" th:unless="${prediction != null}">
+                        Sin prediccion
+                    </span>
+                    <div class="m-pred-result" th:if="${match.finished and prediction != null}"
+                         th:text="${prediction.pointsEarned + ' pts • ' + prediction.resultLabel}">
+                        0 pts
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analysis -->
+    <section class="m-section">
+        <div class="m-section-header">
+            <h2 class="m-section-title">Analisis del partido</h2>
+            <span id="ai-badge" class="m-ai-badge m-ai-badge--fallback">
+                Cargando...
+            </span>
+        </div>
+        <p id="insights-container" class="m-analysis-text" style="white-space: pre-line;">
+            Generando análisis con inteligencia artificial y buscando resultados reales en internet...
+        </p>
+    </section>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        document.addEventListener("DOMContentLoaded", function() {
+            var matchId = /*[[${match.id}]]*/ 0;
+            var insightsContainer = document.getElementById("insights-container");
+            var aiBadge = document.getElementById("ai-badge");
+
+            function parseMarkdown(text) {
+                if (!text) return "";
+                var lines = text.split("\n");
+                var html = [];
+                var inList = false;
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                    // Escape HTML characters
+                    line = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    
+                    if (line.indexOf("### ") === 0) {
+                        if (inList) {
+                            html.push("</ul>");
+                            inList = false;
+                        }
+                        var title = line.substring(4);
+                        html.push('<h4 style="color: var(--color-gold); font-family: \'Barlow Condensed\', sans-serif; font-size: 1.35rem; margin-top: 24px; margin-bottom: 12px; text-transform: uppercase; border-bottom: 2px solid var(--color-primary); padding-bottom: 4px; display: inline-block;">' + title + '</h4>');
+                    } else if (line.indexOf("- ") === 0 || line.indexOf("* ") === 0) {
+                        if (!inList) {
+                            html.push('<ul style="list-style-type: square; margin-left: 24px; margin-bottom: 16px; color: var(--color-surface);">');
+                            inList = true;
+                        }
+                        var content = line.substring(2);
+                        content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        html.push('<li style="margin-bottom: 8px; font-size: 0.95rem; line-height: 1.6;">' + content + '</li>');
+                    } else {
+                        if (inList) {
+                            html.push("</ul>");
+                            inList = false;
+                        }
+                        if (line !== "") {
+                            var content = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                            html.push('<p style="margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; color: var(--color-text-light);">' + content + '</p>');
+                        }
+                    }
+                }
+                if (inList) {
+                    html.push("</ul>");
+                }
+                return html.join("\n");
+            }
+
+            fetch("/matches/" + matchId + "/insights")
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    insightsContainer.innerHTML = parseMarkdown(data.analysis);
+                    if (data.analysisFromAi) {
+                        aiBadge.className = "m-ai-badge m-ai-badge--active";
+                        aiBadge.textContent = "Gemini activo";
+                    } else {
+                        aiBadge.className = "m-ai-badge m-ai-badge--fallback";
+                        aiBadge.textContent = "Modo respaldo";
+                    }
+                })
+                .catch(function(error) {
+                    console.error("Error al cargar insights:", error);
+                    insightsContainer.textContent = "No se pudo cargar el análisis del partido. Error: " + error.message;
+                    aiBadge.className = "m-ai-badge m-ai-badge--fallback";
+                    aiBadge.textContent = "Error";
+                });
+        });
+        /*]]>*/
+    </script>
+
+</main>
+
+<div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

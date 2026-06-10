@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Admin partidos')}"></head>
+<body>
+<nav th:replace="~{layout :: navbar}"></nav>
+<main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Administracion de partidos</h1>
+            <p class="text-secondary mb-0">Crea partidos y registra resultados.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <form th:action="@{/admin/matches/sync-results}" method="post" class="m-0">
+                <button type="submit" class="btn btn-success">
+                    ⚽ Sincronizar resultados y puntos
+                </button>
+            </form>
+            <form th:action="@{/admin/matches/sync-group-stage}" method="post" class="m-0">
+                <button type="submit" class="btn btn-outline-primary">Sync grupos API</button>
+            </form>
+            <a th:href="@{/admin/matches/new}" class="btn btn-primary">Nuevo partido</a>
+        </div>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                <tr>
+                    <th>Partido</th>
+                    <th>Fase</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="match : ${matches}">
+                    <td th:text="${match.homeTeam + ' vs ' + match.awayTeam}">Partido</td>
+                    <td>
+                        <span th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
+                        <div class="small text-secondary" th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                             th:text="${'Grupo ' + match.matchGroup}">Grupo A</div>
+                    </td>
+                    <td th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</td>
+                    <td th:text="${match.finished ? 'Finalizado' : 'Pendiente'}">Estado</td>
+                    <td class="text-end">
+                        <a th:href="@{|/admin/matches/${match.id}/score|}" class="btn btn-outline-secondary btn-sm">Cargar resultado</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout :: footer}"></div>
+</body>
+</html>

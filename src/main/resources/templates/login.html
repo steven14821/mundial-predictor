@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Login')}"></head>
+<body style="background:var(--m-bg);">
+<main class="m-login">
+
+    <div class="m-login-box">
+        <div class="m-login-header">
+            <h1 class="m-login-title">MUNDIAL 2026</h1>
+            <p class="m-login-subtitle">Inicia sesion para ver tus predicciones.</p>
+        </div>
+
+        <div th:if="${param.error}" class="m-login-alert m-login-alert--error">
+            Usuario o contrasena incorrectos.
+        </div>
+        <div th:if="${param.logout}" class="m-login-alert m-login-alert--success">
+            Sesion cerrada correctamente.
+        </div>
+
+        <form th:action="@{/login}" method="post" class="m-login-form">
+            <div class="m-login-field">
+                <label for="username" class="m-login-label">Usuario</label>
+                <input id="username" name="username" type="text" class="m-login-input" required autofocus>
+            </div>
+
+            <div class="m-login-field">
+                <label for="password" class="m-login-label">Contrasena</label>
+                <input id="password" name="password" type="password" class="m-login-input" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+
+        <div class="m-login-credentials">
+            <div class="m-login-cred-row">
+                <span class="m-login-cred-label">Admin:</span>
+                <span class="m-login-cred-value">admin / admin123</span>
+            </div>
+            <div class="m-login-cred-row">
+                <span class="m-login-cred-label">Jugador:</span>
+                <span class="m-login-cred-value">jugador1 / pass123</span>
+            </div>
+        </div>
+    </div>
+
+</main>
+<div th:replace="~{layout :: footer}"></div>
+</body>
+</html>
