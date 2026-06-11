@@ -70,9 +70,51 @@ public class WorldCupSyncService {
                 return new SyncResult(false, "La API no devolvio partidos de fase de grupos.");
             }
 
-            matchRepository.deleteByPhase(Phase.GRUPOS);
-            matchRepository.saveAll(fetchedMatches);
-            return new SyncResult(true, "Se sincronizaron " + fetchedMatches.size() + " partidos de fase de grupos.");
+            // Upsert seguro: actualizar existentes, insertar nuevos
+            // NUNCA borrar partidos que tengan predicciones asociadas
+            int updated = 0;
+            int inserted = 0;
+            for (Match fetched : fetchedMatches) {
+                if (fetched.getHomeTeamExternalId() == null || fetched.getAwayTeamExternalId() == null) {
+                    // Si no tiene IDs externos, solo insertar si no hay partidos de grupos aún
+                    if (matchRepository.countByPhase(Phase.GRUPOS) == 0) {
+                        matchRepository.save(fetched);
+                        inserted++;
+                    }
+                    continue;
+                }
+
+                java.util.Optional<Match> existing = matchRepository
+                        .findByHomeTeamExternalIdAndAwayTeamExternalId(
+                                fetched.getHomeTeamExternalId(),
+                                fetched.getAwayTeamExternalId());
+
+                if (existing.isPresent()) {
+                    // Actualizar datos del partido existente sin tocar predicciones
+                    Match match = existing.get();
+                    match.setHomeTeam(fetched.getHomeTeam());
+                    match.setAwayTeam(fetched.getAwayTeam());
+                    match.setHomeFlag(fetched.getHomeFlag());
+                    match.setAwayFlag(fetched.getAwayFlag());
+                    match.setMatchDate(fetched.getMatchDate());
+                    match.setMatchGroup(fetched.getMatchGroup());
+                    match.setPhase(fetched.getPhase());
+                    // Solo actualizar resultado si el partido terminó
+                    if (fetched.isFinished()) {
+                        match.setFinished(true);
+                        match.setHomeScore(fetched.getHomeScore());
+                        match.setAwayScore(fetched.getAwayScore());
+                    }
+                    matchRepository.save(match);
+                    updated++;
+                } else {
+                    matchRepository.save(fetched);
+                    inserted++;
+                }
+            }
+
+            return new SyncResult(true,
+                    "Sincronizacion completada: " + inserted + " partidos nuevos, " + updated + " actualizados.");
         } catch (Exception ex) {
             return new SyncResult(false, "No se pudo sincronizar la fase de grupos: " + ex.getMessage());
         }
