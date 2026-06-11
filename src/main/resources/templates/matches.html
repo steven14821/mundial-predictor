@@ -88,7 +88,7 @@
                             <span class="m-fixture__duel-pick"
                                   th:text="${firstPrediction != null ? firstPrediction.predictedHomeScore + '-' + firstPrediction.predictedAwayScore : 'sin prediccion'}">sin prediccion</span>
                             <span class="m-tag m-tag--score"
-                                  th:if="${match.finished and firstPrediction != null}"
+                                  th:if="${match.finished and firstPrediction != null and firstPrediction.pointsEarned != null}"
                                   th:text="${firstPrediction.pointsEarned + ' pts'}">0 pts</span>
                         </div>
 
@@ -101,7 +101,7 @@
                             <span class="m-fixture__duel-pick"
                                   th:text="${secondPrediction != null ? secondPrediction.predictedHomeScore + '-' + secondPrediction.predictedAwayScore : 'sin prediccion'}">sin prediccion</span>
                             <span class="m-tag m-tag--score"
-                                  th:if="${match.finished and secondPrediction != null}"
+                                  th:if="${match.finished and secondPrediction != null and secondPrediction.pointsEarned != null}"
                                   th:text="${secondPrediction.pointsEarned + ' pts'}">0 pts</span>
                         </div>
                     </div>

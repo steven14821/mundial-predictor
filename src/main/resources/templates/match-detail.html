@@ -225,7 +225,7 @@
                         Jugador
                     </strong>
                     <div class="m-duel-pts-torneo"
-                         th:text="${player.totalPoints + ' pts en el torneo'}">
+                         th:text="${(player.totalPoints != null ? player.totalPoints : 0) + ' pts en el torneo'}">
                         0 pts
                     </div>
                 </div>
@@ -237,7 +237,7 @@
                     <span class="m-no-pred" th:unless="${prediction != null}">
                         Sin prediccion
                     </span>
-                    <div class="m-pred-result" th:if="${match.finished and prediction != null}"
+                    <div class="m-pred-result" th:if="${match.finished and prediction != null and prediction.pointsEarned != null}"
                          th:text="${prediction.pointsEarned + ' pts • ' + prediction.resultLabel}">
                         0 pts
                     </div>

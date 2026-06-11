@@ -41,7 +41,7 @@
                     </div>
                     <div class="m-duel-pts"
                          th:classappend="${leader != null and (leader.username == players[0].username or leader.displayName == players[0].displayName) ? 'm-duel-pts--leader' : ''}"
-                         th:text="${players[0].totalPoints}">
+                         th:text="${players[0].totalPoints != null ? players[0].totalPoints : 0}">
                         0
                     </div>
                 </div>
@@ -60,7 +60,7 @@
                     </div>
                     <div class="m-duel-pts"
                          th:classappend="${leader != null and (leader.username == players[1].username or leader.displayName == players[1].displayName) ? 'm-duel-pts--leader' : ''}"
-                         th:text="${players[1].totalPoints}">
+                         th:text="${players[1].totalPoints != null ? players[1].totalPoints : 0}">
                         0
                     </div>
                 </div>
