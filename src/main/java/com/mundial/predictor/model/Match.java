@@ -3,6 +3,7 @@ package com.mundial.predictor.model;
 import jakarta.persistence.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "matches")
@@ -39,12 +40,15 @@ public class Match {
 
     public Match() {}
 
+    // Zona horaria Colombia (UTC-5) — las fechas de partidos se guardan en hora Colombia
+    private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
+
     public boolean isLocked() {
-        return finished || (matchDate != null && LocalDateTime.now().isAfter(matchDate.minusMinutes(30)));
+        return finished || (matchDate != null && LocalDateTime.now(COLOMBIA_ZONE).isAfter(matchDate.minusMinutes(30)));
     }
 
     public boolean isPredictionOpen() {
-        return !finished && matchDate != null && LocalDateTime.now().isBefore(matchDate.minusMinutes(30));
+        return !finished && matchDate != null && LocalDateTime.now(COLOMBIA_ZONE).isBefore(matchDate.minusMinutes(30));
     }
 
     public String getStatusLabel() {
