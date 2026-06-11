@@ -40,7 +40,7 @@ public class MatchInsightsService {
         this.objectMapper = objectMapper;
         this.footballDataService = footballDataService;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(15))
                 .build();
     }
 
@@ -73,31 +73,51 @@ public class MatchInsightsService {
     private String tryModel(String modelName, String payload) throws Exception {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + geminiApiKey;
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(25))
-                .header("content-type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
-                .build();
+        int maxAttempts = 2;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .timeout(Duration.ofSeconds(60))
+                        .header("content-type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+                        .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException("HTTP " + response.statusCode() + ": " + response.body());
-        }
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 429) {
+                    if (attempt < maxAttempts) {
+                        System.out.println("[Gemini] Modelo " + modelName + " devolvio 429. Esperando 5 segundos para reintentar...");
+                        Thread.sleep(5000);
+                        continue;
+                    }
+                }
 
-        JsonNode root = objectMapper.readTree(response.body());
-        if (root.has("error")) {
-            throw new RuntimeException("Error de Gemini: " + root.path("error").path("message").asText("Desconocido"));
-        }
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    throw new RuntimeException("HTTP " + response.statusCode() + ": " + response.body());
+                }
 
-        JsonNode candidates = root.path("candidates");
-        if (candidates.isArray() && !candidates.isEmpty()) {
-            JsonNode parts = candidates.get(0).path("content").path("parts");
-            if (parts.isArray() && !parts.isEmpty()) {
-                return parts.get(0).path("text").asText("");
+                JsonNode root = objectMapper.readTree(response.body());
+                if (root.has("error")) {
+                    throw new RuntimeException("Error de Gemini: " + root.path("error").path("message").asText("Desconocido"));
+                }
+
+                JsonNode candidates = root.path("candidates");
+                if (candidates.isArray() && !candidates.isEmpty()) {
+                    JsonNode parts = candidates.get(0).path("content").path("parts");
+                    if (parts.isArray() && !parts.isEmpty()) {
+                        return parts.get(0).path("text").asText("");
+                    }
+                }
+                throw new RuntimeException("No se pudo extraer el analisis de la respuesta de Gemini.");
+            } catch (java.net.http.HttpTimeoutException te) {
+                if (attempt < maxAttempts) {
+                    System.out.println("[Gemini] Timeout para " + modelName + ". Reintentando...");
+                    continue;
+                }
+                throw te;
             }
         }
-        throw new RuntimeException("No se pudo extraer el analisis de la respuesta de Gemini.");
+        throw new RuntimeException("Fallo despues de reintentos.");
     }
 
     private String fetchGeminiAnalysis(
@@ -114,7 +134,7 @@ public class MatchInsightsService {
         if (geminiModel != null && !geminiModel.isBlank()) {
             modelsToTry.add(geminiModel);
         }
-        for (String m : List.of("gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash")) {
+        for (String m : List.of("gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-2.0-flash-lite-preview-02-05")) {
             if (!modelsToTry.contains(m)) {
                 modelsToTry.add(m);
             }
