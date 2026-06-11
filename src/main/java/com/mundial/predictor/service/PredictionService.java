@@ -106,10 +106,18 @@ public class PredictionService {
     public void recalculateAllTotals() {
         List<User> users = userRepository.findAll();
         for (User user : users) {
-            int total = predictionRepository.findByUser(user).stream()
-                    .filter(p -> p.getPointsEarned() != null)
-                    .mapToInt(Prediction::getPointsEarned)
-                    .sum();
+            List<Prediction> predictions = predictionRepository.findByUser(user);
+            int total = 0;
+            for (Prediction p : predictions) {
+                if (p.getMatch().isFinished()) {
+                    if (p.getPointsEarned() == null) {
+                        int pts = computePoints(p, p.getMatch());
+                        p.setPointsEarned(pts);
+                        predictionRepository.save(p);
+                    }
+                    total += p.getPointsEarned();
+                }
+            }
             user.setTotalPoints(total);
             userRepository.save(user);
         }

@@ -4,6 +4,7 @@ import com.mundial.predictor.model.Match;
 import com.mundial.predictor.model.User;
 import com.mundial.predictor.service.MatchService;
 import com.mundial.predictor.service.UserService;
+import com.mundial.predictor.service.PredictionService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -17,10 +18,12 @@ public class DashboardController {
 
     private final UserService userService;
     private final MatchService matchService;
+    private final PredictionService predictionService;
 
-    public DashboardController(UserService userService, MatchService matchService) {
+    public DashboardController(UserService userService, MatchService matchService, PredictionService predictionService) {
         this.userService = userService;
         this.matchService = matchService;
+        this.predictionService = predictionService;
     }
 
     @GetMapping("/")
@@ -35,6 +38,8 @@ public class DashboardController {
 
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        predictionService.recalculateAllTotals(); // Auto-recalcular puntos al cargar dashboard
+
         User currentUser = userService.findByUsername(userDetails.getUsername());
         List<User> players = userService.findAllPlayers();
         List<Match> upcoming = matchService.findUpcoming();

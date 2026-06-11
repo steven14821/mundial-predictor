@@ -295,7 +295,7 @@ public class WorldCupSyncService {
 
     private LocalDateTime parseUtcDate(String utcDate) {
         if (utcDate == null || utcDate.isBlank()) {
-            return LocalDateTime.now();
+            return LocalDateTime.now(COLOMBIA_ZONE);
         }
         return OffsetDateTime.parse(utcDate)
                 .atZoneSameInstant(COLOMBIA_ZONE)

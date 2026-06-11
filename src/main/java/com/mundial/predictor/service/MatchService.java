@@ -27,7 +27,9 @@ public class MatchService {
     }
 
     public List<Match> findUpcoming() {
-        return matchRepository.findByFinishedFalseAndMatchDateAfterOrderByMatchDateAsc(LocalDateTime.now());
+        return matchRepository.findByFinishedFalseAndMatchDateAfterOrderByMatchDateAsc(
+                LocalDateTime.now(java.time.ZoneId.of("America/Bogota"))
+        );
     }
 
     public Match save(Match match) {
