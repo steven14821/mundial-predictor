@@ -31,7 +31,7 @@ public class MatchInsightsService {
 
     public MatchInsightsService(
             @Value("${gemini.api.key:}") String geminiApiKey,
-            @Value("${gemini.model:gemini-1.5-flash}") String geminiModel,
+            @Value("${gemini.model:gemini-2.0-flash}") String geminiModel,
             ObjectMapper objectMapper,
             FootballDataService footballDataService
     ) {
@@ -102,21 +102,16 @@ public class MatchInsightsService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                String modelsList = "";
-                try {
-                    String modelsUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=" + geminiApiKey;
-                    HttpRequest modelsReq = HttpRequest.newBuilder().uri(URI.create(modelsUrl)).GET().build();
-                    HttpResponse<String> modelsResp = httpClient.send(modelsReq, HttpResponse.BodyHandlers.ofString());
-                    modelsList = "\n\nModelos disponibles:\n" + modelsResp.body();
-                } catch (Exception e) {
-                    modelsList = "\n\nNo se pudo listar modelos: " + e.getMessage();
-                }
-                return "Error de Gemini (HTTP " + response.statusCode() + "): " + response.body() + modelsList;
+                // Error de API (503 alta demanda, 429 rate limit, etc.) — silencioso, usar análisis local
+                System.err.println("[Gemini] HTTP " + response.statusCode() + " — usando análisis local de respaldo.");
+                return null;
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             if (root.has("error")) {
-                return "Error de Gemini: " + root.path("error").path("message").asText("Desconocido");
+                // Error en respuesta JSON — silencioso, usar análisis local
+                System.err.println("[Gemini] Error en respuesta: " + root.path("error").path("message").asText("Desconocido") + " — usando análisis local.");
+                return null;
             }
             
             JsonNode candidates = root.path("candidates");
