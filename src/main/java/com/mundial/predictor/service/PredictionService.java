@@ -89,6 +89,9 @@ public class PredictionService {
      * - Incorrecto                                        → 0 puntos
      */
     private int computePoints(Prediction p, Match m) {
+        if (m.getHomeScore() == null || m.getAwayScore() == null) {
+            return 0;
+        }
         int pH = p.getPredictedHomeScore();
         int pA = p.getPredictedAwayScore();
         int rH = m.getHomeScore();
@@ -109,9 +112,10 @@ public class PredictionService {
             List<Prediction> predictions = predictionRepository.findByUser(user);
             int total = 0;
             for (Prediction p : predictions) {
-                if (p.getMatch().isFinished()) {
+                Match m = p.getMatch();
+                if (m.isFinished() && m.getHomeScore() != null && m.getAwayScore() != null) {
                     if (p.getPointsEarned() == null) {
-                        int pts = computePoints(p, p.getMatch());
+                        int pts = computePoints(p, m);
                         p.setPointsEarned(pts);
                         predictionRepository.save(p);
                     }
