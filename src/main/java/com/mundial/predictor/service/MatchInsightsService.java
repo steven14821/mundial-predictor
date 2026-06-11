@@ -62,12 +62,42 @@ public class MatchInsightsService {
         String aiAnalysis = fetchGeminiAnalysis(match, homeContext, awayContext, matchContext);
         if (aiAnalysis != null && !aiAnalysis.isBlank()) {
             analysis = aiAnalysis;
-            fromAi = true;
+            fromAi = !aiAnalysis.startsWith("Error al obtener analisis de Gemini");
         }
 
         MatchInsights insights = new MatchInsights(analysis, fromAi);
         cache.put(cacheKey, insights);
         return insights;
+    }
+
+    private String tryModel(String modelName, String payload) throws Exception {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + geminiApiKey;
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(25))
+                .header("content-type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RuntimeException("HTTP " + response.statusCode() + ": " + response.body());
+        }
+
+        JsonNode root = objectMapper.readTree(response.body());
+        if (root.has("error")) {
+            throw new RuntimeException("Error de Gemini: " + root.path("error").path("message").asText("Desconocido"));
+        }
+
+        JsonNode candidates = root.path("candidates");
+        if (candidates.isArray() && !candidates.isEmpty()) {
+            JsonNode parts = candidates.get(0).path("content").path("parts");
+            if (parts.isArray() && !parts.isEmpty()) {
+                return parts.get(0).path("text").asText("");
+            }
+        }
+        throw new RuntimeException("No se pudo extraer el analisis de la respuesta de Gemini.");
     }
 
     private String fetchGeminiAnalysis(
@@ -79,8 +109,20 @@ public class MatchInsightsService {
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
             return null;
         }
+
+        List<String> modelsToTry = new java.util.ArrayList<>();
+        if (geminiModel != null && !geminiModel.isBlank()) {
+            modelsToTry.add(geminiModel);
+        }
+        for (String m : List.of("gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash")) {
+            if (!modelsToTry.contains(m)) {
+                modelsToTry.add(m);
+            }
+        }
+
+        String payload;
         try {
-            String payload = objectMapper.writeValueAsString(Map.of(
+            payload = objectMapper.writeValueAsString(Map.of(
                     "contents", List.of(Map.of(
                             "parts", List.of(Map.of(
                                     "text", buildPrompt(match, homeContext, awayContext, matchContext)
@@ -90,42 +132,31 @@ public class MatchInsightsService {
                             "google_search", Map.of()
                     ))
             ));
-
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel + ":generateContent?key=" + geminiApiKey;
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(25))
-                    .header("content-type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                // Error de API (503 alta demanda, 429 rate limit, etc.) — silencioso, usar análisis local
-                System.err.println("[Gemini] HTTP " + response.statusCode() + " — usando análisis local de respaldo.");
-                return null;
-            }
-
-            JsonNode root = objectMapper.readTree(response.body());
-            if (root.has("error")) {
-                // Error en respuesta JSON — silencioso, usar análisis local
-                System.err.println("[Gemini] Error en respuesta: " + root.path("error").path("message").asText("Desconocido") + " — usando análisis local.");
-                return null;
-            }
-            
-            JsonNode candidates = root.path("candidates");
-            if (candidates.isArray() && !candidates.isEmpty()) {
-                JsonNode parts = candidates.get(0).path("content").path("parts");
-                if (parts.isArray() && !parts.isEmpty()) {
-                    return parts.get(0).path("text").asText(null);
-                }
-            }
         } catch (Exception e) {
-            return "Excepcion al conectar con Gemini: " + e.getMessage();
+            System.err.println("[Gemini] Error al serializar payload: " + e.getMessage());
+            return null;
         }
 
-        return "No se pudo extraer el analisis de la respuesta de Gemini.";
+        StringBuilder errorLog = new StringBuilder();
+        for (String model : modelsToTry) {
+            try {
+                System.out.println("[Gemini] Intentando obtener analisis con el modelo: " + model);
+                String result = tryModel(model, payload);
+                if (result != null && !result.isBlank()) {
+                    System.out.println("[Gemini] Analisis obtenido exitosamente con el modelo: " + model);
+                    return result;
+                }
+            } catch (Exception e) {
+                String errorMsg = "Modelo " + model + " fallo: " + e.getMessage();
+                System.err.println("[Gemini] " + errorMsg);
+                if (errorLog.length() > 0) {
+                    errorLog.append("\n");
+                }
+                errorLog.append("- ").append(errorMsg);
+            }
+        }
+
+        return "Error al obtener analisis de Gemini. Intentos realizados:\n" + errorLog.toString();
     }
 
     private String buildPrompt(
