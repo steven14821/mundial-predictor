@@ -230,14 +230,21 @@
                     </div>
                 </div>
                 <div class="m-duel-prediction" th:with="prediction=${predictionsByUser.get(player.id)}">
-                    <span class="m-mono" th:if="${prediction != null}"
+                    <!-- Si tiene predicción y es visible -->
+                    <span class="m-mono" th:if="${prediction != null and (player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
                           th:text="${prediction.predictedHomeScore + ' - ' + prediction.predictedAwayScore}">
                         0 - 0
                     </span>
+                    <!-- Si tiene predicción pero está oculta -->
+                    <span th:if="${prediction != null and !(player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
+                          style="font-style: italic; color: var(--color-text-light); opacity: 0.7; font-size: 0.9rem;">
+                        oculto &#128274;
+                    </span>
+                    <!-- Si no tiene predicción -->
                     <span class="m-no-pred" th:unless="${prediction != null}">
                         Sin prediccion
                     </span>
-                    <div class="m-pred-result" th:if="${match.finished and prediction != null and prediction.pointsEarned != null}"
+                    <div class="m-pred-result" th:if="${match.finished and prediction != null and prediction.pointsEarned != null and (player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
                          th:text="${prediction.pointsEarned + ' pts • ' + prediction.resultLabel}">
                         0 pts
                     </div>
