@@ -48,6 +48,7 @@ public class Prediction {
         if (pointsEarned == null) return "Pendiente";
         return switch (pointsEarned) {
             case 3 -> "¡Exacto!";
+            case 2 -> "Ganador + Dif. Gol";
             case 1 -> "Ganador correcto";
             default -> "Incorrecto";
         };

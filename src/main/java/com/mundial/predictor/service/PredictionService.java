@@ -84,9 +84,10 @@ public class PredictionService {
 
     /**
      * Sistema de puntuación:
-     * - Resultado exacto (ej. predijo 2-1, salió 2-1)  → 3 puntos
-     * - Ganador/empate correcto (salió 1-0, predijo 3-0) → 1 punto
-     * - Incorrecto                                        → 0 puntos
+     * - Resultado exacto (ej. predijo 2-1, salió 2-1)                     → 3 puntos
+     * - Ganador/empate correcto Y diferencia de gol (predijo 3-0, salió 4-1) → 2 puntos
+     * - Ganador/empate correcto solamente (predijo 2-0, salió 4-1)          → 1 punto
+     * - Incorrecto                                                         → 0 puntos
      */
     private int computePoints(Prediction p, Match m) {
         if (m.getHomeScore() == null || m.getAwayScore() == null) {
@@ -97,11 +98,20 @@ public class PredictionService {
         int rH = m.getHomeScore();
         int rA = m.getAwayScore();
 
+        // 1. Resultado exacto
         if (pH == rH && pA == rA) return 3;
 
-        // Integer.compare devuelve -1 (away gana), 0 (empate), 1 (home gana)
-        if (Integer.compare(pH, pA) == Integer.compare(rH, rA)) return 1;
+        // Validar si acertó al ganador o al empate
+        if (Integer.compare(pH, pA) == Integer.compare(rH, rA)) {
+            // 2. Ganador/empate correcto Y diferencia de gol exacta
+            if ((pH - pA) == (rH - rA)) {
+                return 2;
+            }
+            // 3. Ganador/empate correcto simple
+            return 1;
+        }
 
+        // 4. Incorrecto
         return 0;
     }
 
