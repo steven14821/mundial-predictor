@@ -49,6 +49,7 @@ public class MatchController {
 
         java.time.LocalDate todayDate = java.time.LocalDate.now(java.time.ZoneId.of("America/Bogota"));
         Map<java.time.LocalDate, List<Match>> matchesByDate = matches.stream()
+                .filter(match -> match.getMatchDate() != null)
                 .collect(java.util.stream.Collectors.groupingBy(
                         match -> match.getMatchDate().toLocalDate(),
                         java.util.LinkedHashMap::new,

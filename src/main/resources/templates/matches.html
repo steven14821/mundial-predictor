@@ -103,7 +103,7 @@
                             <p class="m-fixture__duel-label">Duelo del partido</p>
                             <div class="m-fixture__duel-grid">
                                 <div class="m-fixture__duel-player"
-                                     th:with="firstPrediction=${duelPredictions.get(match.id).get(duelPlayers[0].id)}">
+                                     th:with="firstPrediction=${duelPredictions.get(match.id) != null ? duelPredictions.get(match.id).get(duelPlayers[0].id) : null}">
                                     <span class="m-fixture__duel-name"
                                           th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
                                     <!-- Si tiene predicción y es visible -->
@@ -125,7 +125,7 @@
                                 <span class="m-fixture__duel-vs">VS</span>
 
                                 <div class="m-fixture__duel-player m-fixture__duel-player--right"
-                                     th:with="secondPrediction=${duelPredictions.get(match.id).get(duelPlayers[1].id)}">
+                                     th:with="secondPrediction=${duelPredictions.get(match.id) != null ? duelPredictions.get(match.id).get(duelPlayers[1].id) : null}">
                                     <span class="m-fixture__duel-name"
                                           th:text="${duelPlayers[1].displayName != null ? duelPlayers[1].displayName : duelPlayers[1].username}">Jugador 2</span>
                                     <!-- Si tiene predicción y es visible -->
