@@ -18,9 +18,28 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithUserDetails;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 @SpringBootTest
 @Transactional
+@AutoConfigureMockMvc
 class MundialPredictorApplicationTests {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Test
+	@WithUserDetails("Steven")
+	void testMatchesPage() throws Exception {
+		mockMvc.perform(get("/matches"))
+				.andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
+				.andExpect(status().isOk());
+	}
+
 
 	@Autowired
 	private PredictionService predictionService;
