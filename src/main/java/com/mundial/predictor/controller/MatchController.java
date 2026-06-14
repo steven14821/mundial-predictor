@@ -47,8 +47,22 @@ public class MatchController {
         Map<Long, Prediction> predictions = predictionService.getPredictionsMapByMatch(currentUser, matches);
         Map<Long, Map<Long, Prediction>> duelPredictions = predictionService.getPredictionsByMatchForUsers(duelPlayers, matches);
 
+        java.time.LocalDate todayDate = java.time.LocalDate.now(java.time.ZoneId.of("America/Bogota"));
+        Map<java.time.LocalDate, List<Match>> matchesByDate = matches.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        match -> match.getMatchDate().toLocalDate(),
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()
+                ));
+        boolean hasTodayGroup = matchesByDate.containsKey(todayDate);
+        java.time.LocalDate firstDate = matchesByDate.isEmpty() ? null : matchesByDate.keySet().iterator().next();
+
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("matches", matches);
+        model.addAttribute("matchesByDate", matchesByDate);
+        model.addAttribute("todayDate", todayDate);
+        model.addAttribute("hasTodayGroup", hasTodayGroup);
+        model.addAttribute("firstDate", firstDate);
         model.addAttribute("predictions", predictions);
         model.addAttribute("duelPlayers", duelPlayers);
         model.addAttribute("duelPredictions", duelPredictions);

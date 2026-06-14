@@ -25,109 +25,217 @@
     <!-- ══════════════════════════════════════════════════════════
          MATCH LIST
          ══════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════
+         MATCH LIST
+         ══════════════════════════════════════════════════════════ -->
     <section class="m-section" th:unless="${#lists.isEmpty(matches)}">
-        <div class="m-matches">
-            <article class="m-fixture" th:each="match : ${matches}">
-
-                <!-- Top row: teams + actions -->
-                <div class="m-fixture__top">
-                    <div class="m-fixture__teams">
-                        <span class="m-fixture__team">
-                            <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
-                                 th:src="${match.homeFlag}"
-                                 th:alt="${match.homeTeam}"
-                                 class="m-match__flag"
-                                 width="24" height="18" loading="lazy">
-                            <span th:text="${match.homeTeam}">Local</span>
-                        </span>
-                        <span class="m-match__vs">vs</span>
-                        <span class="m-fixture__team">
-                            <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
-                                 th:src="${match.awayFlag}"
-                                 th:alt="${match.awayTeam}"
-                                 class="m-match__flag"
-                                 width="24" height="18" loading="lazy">
-                            <span th:text="${match.awayTeam}">Visitante</span>
-                        </span>
-                    </div>
-                    <a th:href="@{|/matches/${match.id}|}" class="btn btn-primary btn-sm">Ver detalle</a>
-                </div>
-
-                <!-- Meta row -->
-                <div class="m-match__meta">
-                    <span class="m-match__phase"
-                          th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
-                    <span class="m-match__group"
-                          th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
-                          th:text="'Grupo ' + ${match.matchGroup}">Grupo A</span>
-                    <span class="m-match__date"
-                          th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</span>
-                    <span class="m-match__group">Hora Colombia</span>
-                </div>
-
-                <!-- Status badges -->
-                <div class="m-fixture__badges">
-                    <span class="m-tag m-tag--neutral" th:text="${match.statusLabel}">Estado</span>
-                    <span class="m-tag m-tag--info" th:if="${predictions.containsKey(match.id)}">Ya predijiste</span>
-                    <span class="m-tag m-tag--warn" th:unless="${predictions.containsKey(match.id)}">Sin prediccion</span>
-                    <span class="m-tag m-tag--score"
-                          th:if="${predictions.containsKey(match.id)}"
-                          th:text="${predictions.get(match.id).predictedHomeScore + ' - ' + predictions.get(match.id).predictedAwayScore}">
-                        0 - 0
+        <div class="m-matches-grouped">
+            
+            <div class="m-date-group" th:each="entry : ${matchesByDate}">
+                <!-- Clickable Date Header -->
+                <div class="m-date-header"
+                     th:classappend="${entry.key.equals(todayDate) or (!hasTodayGroup and entry.key.equals(firstDate)) ? 'm-date-header--expanded' : ''}"
+                     onclick="toggleDateGroup(this)">
+                    <span class="m-date-title" th:text="${#temporals.format(entry.key, 'd \'de\' MMMM', new java.util.Locale('es', 'ES'))}">
+                        14 de junio
                     </span>
+                    <svg class="m-date-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                 </div>
 
-                <!-- Duel footer -->
-                <div class="m-fixture__duel" th:if="${#lists.size(duelPlayers) >= 2}">
-                    <p class="m-fixture__duel-label">Duelo del partido</p>
-                    <div class="m-fixture__duel-grid">
-                        <div class="m-fixture__duel-player"
-                             th:with="firstPrediction=${duelPredictions.get(match.id).get(duelPlayers[0].id)}">
-                            <span class="m-fixture__duel-name"
-                                  th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
-                            <!-- Si tiene predicción y es visible -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${firstPrediction != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  th:text="${firstPrediction.predictedHomeScore + '-' + firstPrediction.predictedAwayScore}">0-0</span>
-                            <!-- Si tiene predicción pero está oculta -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${firstPrediction != null and !(duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
-                            <!-- Si no tiene predicción -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${firstPrediction == null}">sin prediccion</span>
-                            <span class="m-tag m-tag--score"
-                                  th:if="${match.finished and firstPrediction != null and firstPrediction.pointsEarned != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  th:text="${firstPrediction.pointsEarned + ' pts'}">0 pts</span>
+                <!-- Matches Container (collapsible) -->
+                <div class="m-date-matches"
+                     th:classappend="${entry.key.equals(todayDate) or (!hasTodayGroup and entry.key.equals(firstDate)) ? '' : 'm-collapsed'}">
+
+                    <article class="m-fixture" th:each="match : ${entry.value}">
+
+                        <!-- Top row: teams + actions -->
+                        <div class="m-fixture__top">
+                            <div class="m-fixture__teams">
+                                <span class="m-fixture__team">
+                                    <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
+                                         th:src="${match.homeFlag}"
+                                         th:alt="${match.homeTeam}"
+                                         class="m-match__flag"
+                                         width="24" height="18" loading="lazy">
+                                    <span th:text="${match.homeTeam}">Local</span>
+                                </span>
+                                <span class="m-match__vs">vs</span>
+                                <span class="m-fixture__team">
+                                    <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
+                                         th:src="${match.awayFlag}"
+                                         th:alt="${match.awayTeam}"
+                                         class="m-match__flag"
+                                         width="24" height="18" loading="lazy">
+                                    <span th:text="${match.awayTeam}">Visitante</span>
+                                </span>
+                            </div>
+                            <a th:href="@{|/matches/${match.id}|}" class="btn btn-primary btn-sm">Ver detalle</a>
                         </div>
 
-                        <span class="m-fixture__duel-vs">VS</span>
-
-                        <div class="m-fixture__duel-player m-fixture__duel-player--right"
-                             th:with="secondPrediction=${duelPredictions.get(match.id).get(duelPlayers[1].id)}">
-                            <span class="m-fixture__duel-name"
-                                  th:text="${duelPlayers[1].displayName != null ? duelPlayers[1].displayName : duelPlayers[1].username}">Jugador 2</span>
-                            <!-- Si tiene predicción y es visible -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${secondPrediction != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  th:text="${secondPrediction.predictedHomeScore + '-' + secondPrediction.predictedAwayScore}">0-0</span>
-                            <!-- Si tiene predicción pero está oculta -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${secondPrediction != null and !(duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
-                            <!-- Si no tiene predicción -->
-                            <span class="m-fixture__duel-pick"
-                                  th:if="${secondPrediction == null}">sin prediccion</span>
-                            <span class="m-tag m-tag--score"
-                                  th:if="${match.finished and secondPrediction != null and secondPrediction.pointsEarned != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                  th:text="${secondPrediction.pointsEarned + ' pts'}">0 pts</span>
+                        <!-- Meta row -->
+                        <div class="m-match__meta">
+                            <span class="m-match__phase"
+                                  th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
+                            <span class="m-match__group"
+                                  th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                                  th:text="'Grupo ' + ${match.matchGroup}">Grupo A</span>
+                            <span class="m-match__date"
+                                  th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</span>
+                            <span class="m-match__group">Hora Colombia</span>
                         </div>
-                    </div>
+
+                        <!-- Status badges -->
+                        <div class="m-fixture__badges">
+                            <span class="m-tag m-tag--neutral" th:text="${match.statusLabel}">Estado</span>
+                            <span class="m-tag m-tag--info" th:if="${predictions.containsKey(match.id)}">Ya predijiste</span>
+                            <span class="m-tag m-tag--warn" th:unless="${predictions.containsKey(match.id)}">Sin prediccion</span>
+                            <span class="m-tag m-tag--score"
+                                  th:if="${predictions.containsKey(match.id)}"
+                                  th:text="${predictions.get(match.id).predictedHomeScore + ' - ' + predictions.get(match.id).predictedAwayScore}">
+                                0 - 0
+                            </span>
+                        </div>
+
+                        <!-- Duel footer -->
+                        <div class="m-fixture__duel" th:if="${#lists.size(duelPlayers) >= 2}">
+                            <p class="m-fixture__duel-label">Duelo del partido</p>
+                            <div class="m-fixture__duel-grid">
+                                <div class="m-fixture__duel-player"
+                                     th:with="firstPrediction=${duelPredictions.get(match.id).get(duelPlayers[0].id)}">
+                                    <span class="m-fixture__duel-name"
+                                          th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
+                                    <!-- Si tiene predicción y es visible -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${firstPrediction != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          th:text="${firstPrediction.predictedHomeScore + '-' + firstPrediction.predictedAwayScore}">0-0</span>
+                                    <!-- Si tiene predicción pero está oculta -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${firstPrediction != null and !(duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
+                                    <!-- Si no tiene predicción -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${firstPrediction == null}">sin prediccion</span>
+                                    <span class="m-tag m-tag--score"
+                                          th:if="${match.finished and firstPrediction != null and firstPrediction.pointsEarned != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          th:text="${firstPrediction.pointsEarned + ' pts'}">0 pts</span>
+                                </div>
+
+                                <span class="m-fixture__duel-vs">VS</span>
+
+                                <div class="m-fixture__duel-player m-fixture__duel-player--right"
+                                     th:with="secondPrediction=${duelPredictions.get(match.id).get(duelPlayers[1].id)}">
+                                    <span class="m-fixture__duel-name"
+                                          th:text="${duelPlayers[1].displayName != null ? duelPlayers[1].displayName : duelPlayers[1].username}">Jugador 2</span>
+                                    <!-- Si tiene predicción y es visible -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${secondPrediction != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          th:text="${secondPrediction.predictedHomeScore + '-' + secondPrediction.predictedAwayScore}">0-0</span>
+                                    <!-- Si tiene predicción pero está oculta -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${secondPrediction != null and !(duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
+                                    <!-- Si no tiene predicción -->
+                                    <span class="m-fixture__duel-pick"
+                                          th:if="${secondPrediction == null}">sin prediccion</span>
+                                    <span class="m-tag m-tag--score"
+                                          th:if="${match.finished and secondPrediction != null and secondPrediction.pointsEarned != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
+                                          th:text="${secondPrediction.pointsEarned + ' pts'}">0 pts</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </article>
+
                 </div>
+            </div>
 
-            </article>
         </div>
     </section>
+
+    <!-- Accordion CSS & JS -->
+    <style>
+    .m-date-group {
+        margin-bottom: 20px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(26, 46, 110, 0.15);
+        border: 1px solid rgba(143, 164, 196, 0.2);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .m-date-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        background: rgba(26, 46, 110, 0.45);
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.25s ease, border-color 0.25s ease;
+        border-bottom: 1px solid rgba(143, 164, 196, 0.1);
+    }
+
+    .m-date-header:hover {
+        background: rgba(26, 46, 110, 0.7);
+    }
+
+    .m-date-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--color-gold);
+    }
+
+    .m-date-arrow {
+        color: var(--color-text-light);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s ease;
+    }
+
+    .m-date-header.m-date-header--expanded {
+        background: rgba(26, 46, 110, 0.85);
+        border-bottom: 2px solid var(--color-primary);
+    }
+
+    .m-date-header.m-date-header--expanded .m-date-arrow {
+        transform: rotate(180deg);
+        color: var(--color-gold);
+    }
+
+    .m-date-matches {
+        max-height: 5000px;
+        opacity: 1;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        padding: 12px;
+    }
+
+    .m-date-matches.m-collapsed {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        padding-top: 0;
+        padding-bottom: 0;
+        pointer-events: none;
+    }
+    </style>
+
+    <script th:inline="javascript">
+        function toggleDateGroup(header) {
+            var matchesContainer = header.nextElementSibling;
+            var isCollapsed = matchesContainer.classList.contains('m-collapsed');
+            
+            if (isCollapsed) {
+                matchesContainer.classList.remove('m-collapsed');
+                header.classList.add('m-date-header--expanded');
+            } else {
+                matchesContainer.classList.add('m-collapsed');
+                header.classList.remove('m-date-header--expanded');
+            }
+        }
+    </script>
 
 </main>
 

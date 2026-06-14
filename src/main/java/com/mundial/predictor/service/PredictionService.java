@@ -103,8 +103,8 @@ public class PredictionService {
 
         // Validar si acertó al ganador o al empate
         if (Integer.compare(pH, pA) == Integer.compare(rH, rA)) {
-            // 2. Ganador/empate correcto Y diferencia de gol exacta
-            if ((pH - pA) == (rH - rA)) {
+            // 2. Ganador correcto Y diferencia de gol exacta (no aplica para empates)
+            if (rH != rA && (pH - pA) == (rH - rA)) {
                 return 2;
             }
             // 3. Ganador/empate correcto simple
@@ -124,12 +124,10 @@ public class PredictionService {
             for (Prediction p : predictions) {
                 Match m = p.getMatch();
                 if (m.isFinished() && m.getHomeScore() != null && m.getAwayScore() != null) {
-                    if (p.getPointsEarned() == null) {
-                        int pts = computePoints(p, m);
-                        p.setPointsEarned(pts);
-                        predictionRepository.save(p);
-                    }
-                    total += p.getPointsEarned();
+                    int pts = computePoints(p, m);
+                    p.setPointsEarned(pts);
+                    predictionRepository.save(p);
+                    total += pts;
                 }
             }
             user.setTotalPoints(total);
