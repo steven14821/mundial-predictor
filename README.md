@@ -30,43 +30,6 @@ Aplicación web fullstack para predicciones de partidos del **Mundial FIFA 2026*
 | Contenedor | Docker (multi-stage, Eclipse Temurin 21) |
 | Utilidades | Lombok, Spring DevTools, Spring Validation |
 
-## Requisitos previos
-
-- **Java 21** o superior
-- **Maven 3.9+** (o usar el wrapper `mvnw` incluido)
-- **Docker** (opcional, solo para ejecución con contenedor)
-
-## Cómo ejecutar
-
-### Opción 1 — Desarrollo local (H2 en memoria)
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/steven14821/mundial-predictor.git
-cd mundial-predictor
-
-# Ejecutar con Maven wrapper
-./mvnw spring-boot:run
-```
-
-La app estará disponible en **http://localhost:8188**
-
-La consola H2 está en **http://localhost:8188/h2-console** (JDBC URL: `jdbc:h2:mem:mundialdb`, usuario: `sa`, sin contraseña).
-
-### Opción 2 — Docker
-
-```bash
-# Construir la imagen
-docker build -t mundial-predictor .
-
-# Ejecutar el contenedor
-docker run -p 8080:8080 \
-  -e DATABASE_URL=jdbc:postgresql://host:5432/mundial \
-  -e ADMIN_PASSWORD=tu_password \
-  -e GEMINI_API_KEY=tu_api_key \
-  mundial-predictor
-```
-
 ### Credenciales por defecto (desarrollo)
 
 | Usuario | Contraseña | Rol |
@@ -75,7 +38,6 @@ docker run -p 8080:8080 \
 | `Jairo` | `jairo123` | Jugador 1 |
 | `Steven` | `steven123` | Jugador 2 |
 
-> ⚠️ Cambiar estas credenciales antes de cualquier deploy a producción.
 
 ## Variables de entorno (producción)
 
