@@ -10,13 +10,23 @@
             <p class="text-secondary mb-0">Crea partidos y registra resultados.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
+            <form th:action="@{/admin/matches/init-schedule}" method="post" class="m-0">
+                <button type="submit" class="btn btn-warning text-white">
+                    <i class="bi bi-gear-fill"></i> Inicializar Calendario Local
+                </button>
+            </form>
             <form th:action="@{/admin/matches/sync-results}" method="post" class="m-0">
                 <button type="submit" class="btn btn-success">
-                    ⚽ Sincronizar resultados y puntos
+                    <i class="bi bi-arrow-repeat"></i> Sincronizar resultados y puntos
                 </button>
             </form>
             <form th:action="@{/admin/matches/sync-group-stage}" method="post" class="m-0">
                 <button type="submit" class="btn btn-outline-primary">Sync grupos API</button>
+            </form>
+            <form th:action="@{/admin/matches/sync-knockout}" method="post" class="m-0">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-trophy-fill"></i> Sync Eliminatorias (API)
+                </button>
             </form>
             <a th:href="@{/admin/matches/new}" class="btn btn-primary">Nuevo partido</a>
         </div>
@@ -42,12 +52,14 @@
                     <td th:text="${match.homeTeam + ' vs ' + match.awayTeam}">Partido</td>
                     <td>
                         <span th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
-                        <div class="small text-secondary" th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                        <div class="small text-secondary"
+                             th:if="${match.phase != null and match.phase.groupStage and match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
                              th:text="${'Grupo ' + match.matchGroup}">Grupo A</div>
                     </td>
                     <td th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</td>
                     <td th:text="${match.finished ? 'Finalizado' : 'Pendiente'}">Estado</td>
                     <td class="text-end">
+                        <a th:href="@{|/admin/matches/${match.id}/edit|}" class="btn btn-outline-primary btn-sm me-1">Editar</a>
                         <a th:href="@{|/admin/matches/${match.id}/score|}" class="btn btn-outline-secondary btn-sm">Cargar resultado</a>
                     </td>
                 </tr>

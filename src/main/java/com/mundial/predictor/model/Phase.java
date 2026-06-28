@@ -18,4 +18,8 @@ public enum Phase {
     public String getDisplayName() {
         return displayName;
     }
+
+    public boolean isGroupStage() {
+        return this == GRUPOS;
+    }
 }

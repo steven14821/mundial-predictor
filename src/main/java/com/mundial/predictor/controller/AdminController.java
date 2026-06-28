@@ -44,9 +44,31 @@ public class AdminController {
         return "redirect:/admin/matches";
     }
 
+    @PostMapping("/matches/init-schedule")
+    public String initSchedule(RedirectAttributes ra) {
+        try {
+            matchService.seedAllMatchesIfMissing();
+            ra.addFlashAttribute("success", "Calendario de partidos inicializado localmente.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "Error al inicializar el calendario: " + e.getMessage());
+        }
+        return "redirect:/admin/matches";
+    }
+
     @PostMapping("/matches/sync-group-stage")
     public String syncGroupStage(RedirectAttributes ra) {
         WorldCupSyncService.SyncResult result = worldCupSyncService.syncGroupStageMatches();
+        if (result.success()) {
+            ra.addFlashAttribute("success", result.message());
+        } else {
+            ra.addFlashAttribute("error", result.message());
+        }
+        return "redirect:/admin/matches";
+    }
+
+    @PostMapping("/matches/sync-knockout")
+    public String syncKnockout(RedirectAttributes ra) {
+        WorldCupSyncService.SyncResult result = worldCupSyncService.syncKnockoutMatches();
         if (result.success()) {
             ra.addFlashAttribute("success", result.message());
         } else {
@@ -65,13 +87,44 @@ public class AdminController {
         }
 
         if (result.success()) {
-            ra.addFlashAttribute("success", "✅ " + result.message());
+            ra.addFlashAttribute("success", "[OK] " + result.message());
         } else {
-            ra.addFlashAttribute("error", "❌ " + result.message());
+            ra.addFlashAttribute("error", "[Error] " + result.message());
         }
         return "redirect:/admin/matches";
     }
 
+
+    @GetMapping("/matches/{id}/edit")
+    public String editMatchForm(@PathVariable Long id, Model model) {
+        Match match = matchService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Partido no encontrado: " + id));
+        model.addAttribute("match", match);
+        model.addAttribute("phases", Phase.values());
+        return "admin/match-form";
+    }
+
+    @PostMapping("/matches/{id}/edit")
+    public String updateMatch(@PathVariable Long id,
+                              @ModelAttribute Match matchDetails,
+                              RedirectAttributes ra) {
+        Match match = matchService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Partido no encontrado: " + id));
+        match.setHomeTeam(matchDetails.getHomeTeam());
+        match.setAwayTeam(matchDetails.getAwayTeam());
+        match.setHomeFlag(matchDetails.getHomeFlag());
+        match.setAwayFlag(matchDetails.getAwayFlag());
+        match.setPhase(matchDetails.getPhase());
+        if (matchDetails.getPhase() != null && matchDetails.getPhase().isGroupStage()) {
+            match.setMatchGroup(matchDetails.getMatchGroup());
+        } else {
+            match.setMatchGroup(null);
+        }
+        match.setMatchDate(matchDetails.getMatchDate());
+        matchService.save(match);
+        ra.addFlashAttribute("success", "Partido actualizado correctamente.");
+        return "redirect:/admin/matches";
+    }
 
     @GetMapping("/matches/{id}/score")
     public String scoreForm(@PathVariable Long id, Model model) {
@@ -87,7 +140,7 @@ public class AdminController {
                            RedirectAttributes ra) {
         Match match = matchService.setScore(id, homeScore, awayScore);
         predictionService.calculatePoints(match);
-        ra.addFlashAttribute("success", "Resultado registrado y puntos calculados ✅");
+        ra.addFlashAttribute("success", "Resultado registrado y puntos calculados.");
         return "redirect:/admin/matches";
     }
 }

@@ -79,7 +79,7 @@
                             <span class="m-match__phase"
                                   th:text="${match.phase != null ? match.phase.displayName : 'Sin fase'}">Fase</span>
                             <span class="m-match__group"
-                                  th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                                  th:if="${match.phase != null and match.phase.groupStage and match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
                                   th:text="'Grupo ' + ${match.matchGroup}">Grupo A</span>
                             <span class="m-match__date"
                                   th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</span>
@@ -89,11 +89,11 @@
                         <!-- Status badges -->
                         <div class="m-fixture__badges">
                             <span class="m-tag m-tag--neutral" th:text="${match.statusLabel}">Estado</span>
-                            <span class="m-tag m-tag--info" th:if="${predictions.containsKey(match.id)}">Ya predijiste</span>
-                            <span class="m-tag m-tag--warn" th:unless="${predictions.containsKey(match.id)}">Sin prediccion</span>
+                            <span class="m-tag m-tag--info" th:if="${match.myPrediction != null}">Ya predijiste</span>
+                            <span class="m-tag m-tag--warn" th:unless="${match.myPrediction != null}">Sin prediccion</span>
                             <span class="m-tag m-tag--score"
-                                  th:if="${predictions.containsKey(match.id)}"
-                                  th:text="${predictions.get(match.id).predictedHomeScore + ' - ' + predictions.get(match.id).predictedAwayScore}">
+                                  th:if="${match.myPrediction != null}"
+                                  th:text="${match.myPrediction.predictedHomeScore + ' - ' + match.myPrediction.predictedAwayScore}">
                                 0 - 0
                             </span>
                         </div>
@@ -102,46 +102,44 @@
                         <div class="m-fixture__duel" th:if="${#lists.size(duelPlayers) >= 2}">
                             <p class="m-fixture__duel-label">Duelo del partido</p>
                             <div class="m-fixture__duel-grid">
-                                <div class="m-fixture__duel-player"
-                                     th:with="firstPrediction=${duelPredictions.get(match.id) != null ? duelPredictions.get(match.id).get(duelPlayers[0].id) : null}">
+                                <div class="m-fixture__duel-player">
                                     <span class="m-fixture__duel-name"
                                           th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
                                     <!-- Si tiene predicción y es visible -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${firstPrediction != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          th:text="${firstPrediction.predictedHomeScore + '-' + firstPrediction.predictedAwayScore}">0-0</span>
+                                          th:if="${match.duelPrediction1 != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:text="${match.duelPrediction1.predictedHomeScore + '-' + match.duelPrediction1.predictedAwayScore}">0-0</span>
                                     <!-- Si tiene predicción pero está oculta -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${firstPrediction != null and !(duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
+                                          th:if="${match.duelPrediction1 != null and !(duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto <i class="bi bi-lock-fill"></i></span>
                                     <!-- Si no tiene predicción -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${firstPrediction == null}">sin prediccion</span>
+                                          th:if="${match.duelPrediction1 == null}">sin prediccion</span>
                                     <span class="m-tag m-tag--score"
-                                          th:if="${match.finished and firstPrediction != null and firstPrediction.pointsEarned != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          th:text="${firstPrediction.pointsEarned + ' pts'}">0 pts</span>
+                                          th:if="${match.finished and match.duelPrediction1 != null and match.duelPrediction1.pointsEarned != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:text="${match.duelPrediction1.pointsEarned + ' pts'}">0 pts</span>
                                 </div>
 
                                 <span class="m-fixture__duel-vs">VS</span>
 
-                                <div class="m-fixture__duel-player m-fixture__duel-player--right"
-                                     th:with="secondPrediction=${duelPredictions.get(match.id) != null ? duelPredictions.get(match.id).get(duelPlayers[1].id) : null}">
+                                <div class="m-fixture__duel-player m-fixture__duel-player--right">
                                     <span class="m-fixture__duel-name"
                                           th:text="${duelPlayers[1].displayName != null ? duelPlayers[1].displayName : duelPlayers[1].username}">Jugador 2</span>
                                     <!-- Si tiene predicción y es visible -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${secondPrediction != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          th:text="${secondPrediction.predictedHomeScore + '-' + secondPrediction.predictedAwayScore}">0-0</span>
+                                          th:if="${match.duelPrediction2 != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:text="${match.duelPrediction2.predictedHomeScore + '-' + match.duelPrediction2.predictedAwayScore}">0-0</span>
                                     <!-- Si tiene predicción pero está oculta -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${secondPrediction != null and !(duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto &#128274;</span>
+                                          th:if="${match.duelPrediction2 != null and !(duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto <i class="bi bi-lock-fill"></i></span>
                                     <!-- Si no tiene predicción -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${secondPrediction == null}">sin prediccion</span>
+                                          th:if="${match.duelPrediction2 == null}">sin prediccion</span>
                                     <span class="m-tag m-tag--score"
-                                          th:if="${match.finished and secondPrediction != null and secondPrediction.pointsEarned != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or predictions.containsKey(match.id))}"
-                                          th:text="${secondPrediction.pointsEarned + ' pts'}">0 pts</span>
+                                          th:if="${match.finished and match.duelPrediction2 != null and match.duelPrediction2.pointsEarned != null and (duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:text="${match.duelPrediction2.pointsEarned + ' pts'}">0 pts</span>
                                 </div>
                             </div>
                         </div>

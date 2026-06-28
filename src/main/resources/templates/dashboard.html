@@ -10,7 +10,7 @@
          GREETING — BLOQUE VERDE ENTERO con "26" gigante de fondo
          ══════════════════════════════════════════════════════════ -->
     <div class="m-greeting">
-        <p class="m-greeting-hello">&#9917; Hola</p>
+        <p class="m-greeting-hello"><i class="bi bi-dribbble"></i> Hola</p>
         <h1 class="m-greeting-name"
             th:text="${currentUser.displayName != null ? currentUser.displayName : currentUser.username}">
             Usuario
@@ -70,7 +70,7 @@
 
         <!-- ── BARRA ROJA SÓLIDA — Líder ── -->
         <div class="m-duel-footer">
-            <span class="m-duel-footer-text">&#9650; Líder</span>
+            <span class="m-duel-footer-text"><i class="bi bi-caret-up-fill"></i> Líder</span>
             <span class="m-duel-footer-leader"
                   th:if="${leader != null}"
                   th:text="${leader.displayName != null ? leader.displayName : leader.username}">
@@ -91,7 +91,7 @@
          ══════════════════════════════════════════════════════════ -->
     <section class="m-section">
         <div class="m-section-header">
-            <h2 class="m-section-title">&#127942; Tabla</h2>
+            <h2 class="m-section-title"><i class="bi bi-trophy-fill"></i> Tabla</h2>
         </div>
 
         <p class="m-empty" th:if="${#lists.isEmpty(players)}">
@@ -120,7 +120,7 @@
          ══════════════════════════════════════════════════════════ -->
     <section class="m-section">
         <div class="m-section-header">
-            <h2 class="m-section-title">&#128197; Próximos partidos</h2>
+            <h2 class="m-section-title"><i class="bi bi-calendar3"></i> Próximos partidos</h2>
             <a th:href="@{/matches}" class="m-cta">Ver todos</a>
         </div>
 
@@ -146,7 +146,7 @@
                             Fase
                         </span>
                         <span class="m-match-date"
-                              th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+                              th:if="${match.phase != null and match.phase.groupStage and match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
                               th:text="'Grupo ' + ${match.matchGroup}">
                             Grupo A
                         </span>

@@ -44,4 +44,15 @@ public class SchedulerConfig {
 
         System.out.println("[Scheduler] " + result.message());
     }
+
+    // Cada 10 minutos: sincroniza fase de grupos y eliminatorias
+    @Scheduled(cron = "0 */10 * * * *")
+    public void autoSyncAllMatches() {
+        if (!worldCupSyncService.isEnabled()) {
+            return;
+        }
+        System.out.println("[Scheduler] Sincronizando todos los enfrentamientos...");
+        worldCupSyncService.syncGroupStageMatches();
+        worldCupSyncService.syncKnockoutMatches();
+    }
 }

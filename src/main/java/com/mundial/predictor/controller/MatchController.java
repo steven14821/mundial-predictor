@@ -45,6 +45,7 @@ public class MatchController {
         List<Match> matches = matchService.findAll();
         List<User> duelPlayers = userService.findAllPlayers();
         Map<Long, Prediction> predictions = predictionService.getPredictionsMapByMatch(currentUser, matches);
+        predictionService.attachPredictionsForListView(currentUser, duelPlayers, matches);
         Map<Long, Map<Long, Prediction>> duelPredictions = predictionService.getPredictionsByMatchForUsers(duelPlayers, matches);
 
         java.time.LocalDate todayDate = java.time.LocalDate.now(java.time.ZoneId.of("America/Bogota"));
@@ -79,11 +80,15 @@ public class MatchController {
                 .orElseThrow(() -> new RuntimeException("Partido no encontrado"));
         List<User> duelPlayers = userService.findAllPlayers();
 
-        Optional<Prediction> myPrediction = predictionService.findByUserAndMatch(currentUser, match);
+        Optional<Prediction> myPrediction = predictionService.findPredictionForUserAndMatch(currentUser, match);
         List<Prediction> allPredictions = match.isFinished()
                 ? predictionService.findByMatch(match)
                 : List.of();
-        Map<Long, Prediction> predictionsByUser = predictionService.getPredictionsMapForMatch(match);
+        Map<String, Prediction> predictionsByUser = new java.util.LinkedHashMap<>();
+        for (User player : duelPlayers) {
+            predictionService.findPredictionForUserAndMatch(player, match)
+                    .ifPresent(p -> predictionsByUser.put(String.valueOf(player.getId()), p));
+        }
         MatchContextData matchContext = matchContextService.getContextForMatch(match);
 
         model.addAttribute("currentUser", currentUser);

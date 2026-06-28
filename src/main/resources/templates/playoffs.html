@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Playoffs')}"></head>
+<body>
+<nav th:replace="~{layout :: navbar}"></nav>
+
+<main class="m-main">
+
+    <!-- Header / Banner -->
+    <div class="m-greeting" style="background: linear-gradient(135deg, var(--color-secondary) 0%, #0c1c38 100%);">
+        <p class="m-greeting-hello"><i class="bi bi-diagram-3-fill"></i> Fase Final</p>
+        <h1 class="m-greeting-name">Playoffs</h1>
+        <p class="m-greeting-sub">Sigue el camino hacia la Gran Final del Mundial 2026.</p>
+    </div>
+
+    <!-- Mobile Tabs (D-LG-NONE) -->
+    <div class="playoff-tabs d-lg-none">
+        <button class="tab-btn active" onclick="switchPhase(event, 'ronda32')">16avos</button>
+        <button class="tab-btn" onclick="switchPhase(event, 'octavos')">8vos</button>
+        <button class="tab-btn" onclick="switchPhase(event, 'cuartos')">Cuartos</button>
+        <button class="tab-btn" onclick="switchPhase(event, 'semifinal')">Semis</button>
+        <button class="tab-btn" onclick="switchPhase(event, 'finals')">Finales</button>
+    </div>
+
+    <!-- Bracket Container -->
+    <div class="bracket-container">
+
+        <!-- Column 1: Ronda de 32 -->
+        <div class="bracket-column active-column" id="col-ronda32">
+            <h3 class="phase-header d-none d-lg-block">16avos de Final</h3>
+            <div class="matches-list">
+                <th:block th:each="match : ${ronda32}">
+                    <div th:replace="~{fragments/playoff-card :: card(match=${match})}"></div>
+                </th:block>
+            </div>
+        </div>
+
+        <!-- Column 2: Octavos -->
+        <div class="bracket-column" id="col-octavos">
+            <h3 class="phase-header d-none d-lg-block">Octavos de Final</h3>
+            <div class="matches-list">
+                <th:block th:each="match : ${octavos}">
+                    <div th:replace="~{fragments/playoff-card :: card(match=${match})}"></div>
+                </th:block>
+            </div>
+        </div>
+
+        <!-- Column 3: Cuartos -->
+        <div class="bracket-column" id="col-cuartos">
+            <h3 class="phase-header d-none d-lg-block">Cuartos de Final</h3>
+            <div class="matches-list">
+                <th:block th:each="match : ${cuartos}">
+                    <div th:replace="~{fragments/playoff-card :: card(match=${match})}"></div>
+                </th:block>
+            </div>
+        </div>
+
+        <!-- Column 4: Semifinales -->
+        <div class="bracket-column" id="col-semifinal">
+            <h3 class="phase-header d-none d-lg-block">Semifinales</h3>
+            <div class="matches-list">
+                <th:block th:each="match : ${semifinal}">
+                    <div th:replace="~{fragments/playoff-card :: card(match=${match})}"></div>
+                </th:block>
+            </div>
+        </div>
+
+        <!-- Column 5: Finales -->
+        <div class="bracket-column" id="col-finals">
+            <h3 class="phase-header d-none d-lg-block">Final y Tercer Puesto</h3>
+            <div class="matches-list">
+                <th:block th:each="match : ${finals}">
+                    <div th:replace="~{fragments/playoff-card :: card(match=${match})}"></div>
+                </th:block>
+            </div>
+        </div>
+
+    </div>
+
+</main>
+
+<div th:replace="~{layout :: footer}"></div>
+
+<!-- Custom CSS & Tab Switching Scripts -->
+<style>
+/* Playoff specific styles */
+.playoff-tabs {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    padding: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    gap: 8px;
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--color-text-light);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 12px;
+    white-space: nowrap;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-btn:hover {
+    color: var(--color-surface);
+}
+
+.tab-btn.active {
+    color: var(--color-surface);
+    border-bottom-color: var(--color-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.bracket-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 50px;
+    padding: 30px 15px;
+    min-height: 800px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted) transparent;
+}
+
+.bracket-column {
+    display: flex;
+    flex-direction: column;
+    width: 330px;
+    flex-shrink: 0;
+}
+
+.phase-header {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-surface);
+    margin-bottom: 25px;
+    border-bottom: 4px solid var(--color-secondary);
+    padding-bottom: 8px;
+    text-align: center;
+}
+
+.matches-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex-grow: 1;
+    gap: 30px;
+}
+
+/* Playoff Card wrapper and link */
+.playoff-card-wrapper {
+    position: relative;
+}
+
+.playoff-card-link {
+    text-decoration: none;
+    display: block;
+}
+
+.playoff-card-link:hover {
+    text-decoration: none;
+}
+
+/* Playoff Card Body Layout */
+.playoff-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.playoff-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Status colors left border */
+.playoff-card.finished {
+    border-left: 5px solid var(--color-tertiary);
+}
+.playoff-card.locked {
+    border-left: 5px solid var(--color-gold);
+}
+.playoff-card.scheduled {
+    border-left: 5px solid var(--color-muted);
+}
+
+.playoff-card-body {
+    display: flex;
+    justify-content: space-between;
+}
+
+.playoff-card-left {
+    padding: 12px 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.playoff-status-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-light);
+    opacity: 0.7;
+    margin-bottom: 2px;
+}
+
+.playoff-team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.playoff-team-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.playoff-flag {
+    width: 24px;
+    height: 16px;
+    object-fit: cover;
+    border-radius: 2px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.playoff-flag-placeholder {
+    width: 24px;
+    height: 16px;
+    background: rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.playoff-team-name {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--color-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playoff-score {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 1.2rem;
+    color: var(--color-surface);
+    padding: 0 4px;
+}
+
+/* Right datetime block */
+.playoff-card-right {
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 85px;
+    flex-shrink: 0;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.playoff-datetime-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+}
+
+.playoff-day {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--color-text-light);
+    letter-spacing: 0.05em;
+}
+
+.playoff-time {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--color-surface);
+}
+
+.playoff-date {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--color-text-light);
+}
+
+.playoff-card-footer {
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 6px 15px;
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    opacity: 0.8;
+}
+
+/* Bracket connection lines (Desktop) */
+@media (min-width: 992px) {
+    /* Let's draw horizontal lines out of cards */
+    .playoff-card-wrapper::after {
+        content: "";
+        position: absolute;
+        right: -50px;
+        top: 50%;
+        width: 50px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.15);
+        z-index: 0;
+    }
+    
+    /* Last column doesn't need right lines */
+    #col-finals .playoff-card-wrapper::after {
+        display: none;
+    }
+}
+
+/* Mobile responsive columns behavior */
+@media (max-width: 991.98px) {
+    .bracket-container {
+        gap: 0;
+        padding-top: 10px;
+        min-height: auto;
+    }
+    .bracket-column {
+        display: none; /* Hide non-active on mobile */
+        width: 100%;
+    }
+    .bracket-column.active-column {
+        display: flex; /* Show active */
+    }
+    .matches-list {
+        gap: 15px;
+    }
+}
+</style>
+
+<!-- Script to handle mobile tabs -->
+<script>
+function switchPhase(event, phase) {
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    // Add active class to clicked button
+    event.currentTarget.classList.add('active');
+
+    // Hide all columns
+    document.querySelectorAll('.bracket-column').forEach(col => col.classList.remove('active-column'));
+    // Show selected column
+    document.getElementById('col-' + phase).classList.add('active-column');
+}
+</script>
+
+</body>
+</html>

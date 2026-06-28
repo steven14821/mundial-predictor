@@ -7,7 +7,9 @@
     <div class="mb-4">
         <h1 class="h3 mb-1">Registrar resultado</h1>
         <p class="text-secondary mb-0" th:text="${match.homeTeam + ' vs ' + match.awayTeam}">Partido</p>
-        <p class="text-secondary mb-0" th:if="${match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
+        <p class="text-secondary mb-0" th:if="${match.phase != null}" th:text="${match.phase.displayName}">Fase</p>
+        <p class="text-secondary mb-0"
+           th:if="${match.phase != null and match.phase.groupStage and match.matchGroup != null and !#strings.isEmpty(match.matchGroup)}"
            th:text="${'Grupo ' + match.matchGroup}">Grupo A</p>
     </div>
 

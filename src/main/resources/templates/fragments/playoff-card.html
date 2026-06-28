@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="card(match)" class="playoff-card-wrapper">
+    <a th:href="@{|/matches/${match.id}|}" class="playoff-card-link">
+        <div class="playoff-card" th:classappend="${match.finished ? 'finished' : (match.isLocked() ? 'locked' : 'scheduled')}">
+
+            <div class="playoff-card-body">
+
+                <div class="playoff-card-left">
+                    <span class="playoff-status-badge" th:text="${match.finished ? 'Terminado' : (match.isLocked() ? 'Bloqueado' : 'Programado')}">Scheduled</span>
+
+                    <div class="playoff-team-row">
+                        <div class="playoff-team-identity">
+                            <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
+                                 th:src="${match.homeFlag}"
+                                 class="playoff-flag" alt="Flag">
+                            <div th:unless="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
+                                 class="playoff-flag-placeholder">
+                                <i class="bi bi-flag-fill"></i>
+                            </div>
+                            <span class="playoff-team-name" th:text="${match.homeTeam}">Germany</span>
+                        </div>
+                        <span class="playoff-score" th:if="${match.finished}" th:text="${match.homeScore}">0</span>
+                    </div>
+
+                    <div class="playoff-team-row">
+                        <div class="playoff-team-identity">
+                            <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
+                                 th:src="${match.awayFlag}"
+                                 class="playoff-flag" alt="Flag">
+                            <div th:unless="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
+                                 class="playoff-flag-placeholder">
+                                <i class="bi bi-flag-fill"></i>
+                            </div>
+                            <span class="playoff-team-name" th:text="${match.awayTeam}">Paraguay</span>
+                        </div>
+                        <span class="playoff-score" th:if="${match.finished}" th:text="${match.awayScore}">0</span>
+                    </div>
+                </div>
+
+                <div class="playoff-card-right">
+                    <div class="playoff-datetime-block">
+                        <span class="playoff-day" th:text="${#temporals.format(match.matchDate, 'EEE', new java.util.Locale('es'))}">MON</span>
+                        <span class="playoff-time" th:text="${#temporals.format(match.matchDate, 'HH:mm')}">21:30</span>
+                        <span class="playoff-date" th:text="${#temporals.format(match.matchDate, 'd MMM', new java.util.Locale('es'))}">29 JUN</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="playoff-card-footer">
+                <span th:text="${match.phase.displayName}">Ronda de 32</span>
+            </div>
+        </div>
+    </a>
+</div>
+</body>
+</html>

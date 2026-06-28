@@ -19,9 +19,14 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class WorldCupSyncService {
@@ -200,6 +205,193 @@ public class WorldCupSyncService {
 
     public record SyncResultWithMatches(boolean success, String message, List<Match> newlyFinishedMatches) {}
 
+    /**
+     * Sincroniza los partidos de las fases eliminatorias (mata a mata) desde la API.
+     * Empareja por IDs externos, fecha cercana o posición dentro de la fase.
+     * Inserta partidos nuevos si la API tiene más cruces que la BD.
+     */
+    @Transactional
+    public SyncResult syncKnockoutMatches() {
+        if (!isEnabled()) {
+            return new SyncResult(false, "FOOTBALL_DATA_API_KEY no configurada.");
+        }
+
+        try {
+            String url = "https://api.football-data.org/v4/competitions/" + competitionCode
+                    + "/matches?season=" + season;
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("X-Auth-Token", apiKey)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return new SyncResult(false, "Error HTTP " + response.statusCode() + " al consultar la API.");
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            int updated = 0;
+            int inserted = 0;
+
+            Map<Phase, List<JsonNode>> apiByPhase = new LinkedHashMap<>();
+            for (JsonNode node : root.path("matches")) {
+                Phase phase = apiStageToPhase(node.path("stage").asText(""));
+                if (phase == null) continue;
+                apiByPhase.computeIfAbsent(phase, ignored -> new ArrayList<>()).add(node);
+            }
+
+            for (List<JsonNode> nodes : apiByPhase.values()) {
+                nodes.sort(Comparator.comparing(n -> n.path("utcDate").asText("")));
+            }
+
+            for (Map.Entry<Phase, List<JsonNode>> entry : apiByPhase.entrySet()) {
+                Phase phase = entry.getKey();
+                List<JsonNode> apiMatches = entry.getValue();
+                List<Match> dbMatches = new ArrayList<>(matchRepository.findByPhaseOrderByMatchDateAsc(phase));
+                Set<Long> usedDbIds = new HashSet<>();
+
+                for (int index = 0; index < apiMatches.size(); index++) {
+                    JsonNode node = apiMatches.get(index);
+                    Optional<Match> found = findKnockoutMatch(node, dbMatches, usedDbIds, index);
+
+                    Match match;
+                    if (found.isPresent()) {
+                        match = found.get();
+                        usedDbIds.add(match.getId());
+                        updated++;
+                    } else {
+                        match = new Match();
+                        match.setPhase(phase);
+                        match.setFinished(false);
+                        inserted++;
+                    }
+
+                    applyApiNodeToMatch(match, node);
+                    matchRepository.save(match);
+                }
+            }
+
+            return new SyncResult(true,
+                    "Eliminatorias sincronizadas: " + updated + " actualizado(s), " + inserted + " nuevo(s).");
+
+        } catch (Exception ex) {
+            return new SyncResult(false, "Error al sincronizar eliminatorias: " + ex.getMessage());
+        }
+    }
+
+    private Optional<Match> findKnockoutMatch(
+            JsonNode node,
+            List<Match> dbMatches,
+            Set<Long> usedDbIds,
+            int index
+    ) {
+        JsonNode homeTeamNode = node.path("homeTeam");
+        JsonNode awayTeamNode = node.path("awayTeam");
+        Integer homeExtId = homeTeamNode.path("id").isNumber() ? homeTeamNode.path("id").asInt() : null;
+        Integer awayExtId = awayTeamNode.path("id").isNumber() ? awayTeamNode.path("id").asInt() : null;
+        LocalDateTime matchDateApi = parseUtcDate(node.path("utcDate").asText());
+
+        if (homeExtId != null && awayExtId != null) {
+            for (Match candidate : dbMatches) {
+                if (usedDbIds.contains(candidate.getId())) continue;
+                if (homeExtId.equals(candidate.getHomeTeamExternalId())
+                        && awayExtId.equals(candidate.getAwayTeamExternalId())) {
+                    return Optional.of(candidate);
+                }
+            }
+        }
+
+        Match closest = null;
+        long closestDiffHours = Long.MAX_VALUE;
+        for (Match candidate : dbMatches) {
+            if (usedDbIds.contains(candidate.getId()) || candidate.getMatchDate() == null) continue;
+            long diffHours = Duration.between(candidate.getMatchDate(), matchDateApi).abs().toHours();
+            if (diffHours <= 24 && diffHours < closestDiffHours) {
+                closest = candidate;
+                closestDiffHours = diffHours;
+            }
+        }
+        if (closest != null) {
+            return Optional.of(closest);
+        }
+
+        List<Match> unused = dbMatches.stream()
+                .filter(m -> !usedDbIds.contains(m.getId()))
+                .toList();
+        if (index < unused.size()) {
+            return Optional.of(unused.get(index));
+        }
+
+        return Optional.empty();
+    }
+
+    private void applyApiNodeToMatch(Match match, JsonNode node) {
+        JsonNode homeTeamNode = node.path("homeTeam");
+        JsonNode awayTeamNode = node.path("awayTeam");
+
+        if (isTeamKnown(homeTeamNode)) {
+            match.setHomeTeam(translateTeamName(homeTeamNode.path("name").asText("")));
+            match.setHomeTeamExternalId(homeTeamNode.path("id").asInt());
+            String homeFlag = resolveFlagUrl(homeTeamNode);
+            if (homeFlag != null) match.setHomeFlag(homeFlag);
+        } else if (match.getHomeTeam() == null || isPlaceholderTeam(match.getHomeTeam())) {
+            match.setHomeTeam("Por definir");
+        }
+
+        if (isTeamKnown(awayTeamNode)) {
+            match.setAwayTeam(translateTeamName(awayTeamNode.path("name").asText("")));
+            match.setAwayTeamExternalId(awayTeamNode.path("id").asInt());
+            String awayFlag = resolveFlagUrl(awayTeamNode);
+            if (awayFlag != null) match.setAwayFlag(awayFlag);
+        } else if (match.getAwayTeam() == null || isPlaceholderTeam(match.getAwayTeam())) {
+            match.setAwayTeam("Por definir");
+        }
+
+        match.setMatchDate(parseUtcDate(node.path("utcDate").asText()));
+
+        if (match.getPhase() != null && match.getPhase() != Phase.GRUPOS) {
+            match.setMatchGroup(null);
+        }
+
+        String status = node.path("status").asText("");
+        if ("FINISHED".equals(status)) {
+            JsonNode fullTime = node.path("score").path("fullTime");
+            if (fullTime.path("home").isNumber() && fullTime.path("away").isNumber()) {
+                match.setHomeScore(fullTime.path("home").asInt());
+                match.setAwayScore(fullTime.path("away").asInt());
+                match.setFinished(true);
+            }
+        }
+    }
+
+    private boolean isTeamKnown(JsonNode teamNode) {
+        if (!teamNode.path("id").isNumber()) return false;
+        String name = teamNode.path("name").asText("").trim();
+        return !name.isBlank() && !"TBD".equalsIgnoreCase(name);
+    }
+
+    private boolean isPlaceholderTeam(String teamName) {
+        if (teamName == null || teamName.isBlank()) return true;
+        String lower = teamName.toLowerCase();
+        return lower.startsWith("ganador") || lower.startsWith("perdedor") || lower.equals("por definir");
+    }
+
+    /** Convierte el stage de la API football-data.org a nuestra Phase enum. */
+    private Phase apiStageToPhase(String stage) {
+        return switch (stage) {
+            case "LAST_32"        -> Phase.RONDA32;
+            case "LAST_16"        -> Phase.OCTAVOS;
+            case "QUARTER_FINAL", "QUARTER_FINALS" -> Phase.CUARTOS;
+            case "SEMI_FINAL", "SEMI_FINALS"       -> Phase.SEMIFINAL;
+            case "THIRD_PLACE"    -> Phase.TERCER_PUESTO;
+            case "FINAL"          -> Phase.FINAL;
+            default               -> null;
+        };
+    }
 
     private List<Match> fetchGroupStageMatches() throws Exception {
         Map<String, String> teamToGroupMap = fetchTeamToGroupMap();
@@ -401,6 +593,7 @@ public class WorldCupSyncService {
         map.put("Algeria", "Argelia");
         map.put("Cote d'Ivoire", "Costa de Marfil");
         map.put("Ivory Coast", "Costa de Marfil");
+        map.put("Bosnia-Herzegovina", "Bosnia y Herzegovina");
         map.put("Serbia", "Serbia");
         map.put("Turkey", "Turquia");
         return Collections.unmodifiableMap(map);

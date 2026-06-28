@@ -47,12 +47,23 @@ public class DataInitializer {
             createUserIfMissing(userRepository, passwordEncoder, player1Username, player1Password, Role.PLAYER, player1Username);
             createUserIfMissing(userRepository, passwordEncoder, player2Username, player2Password, Role.PLAYER, player2Username);
 
-            if (worldCupSeedEnabled && matchRepository.count() == 0) {
-                matchRepository.saveAll(buildWorldCup2026Schedule());
+            if (worldCupSeedEnabled) {
+                if (matchRepository.count() == 0) {
+                    matchRepository.saveAll(buildWorldCup2026Schedule());
+                } else if (matchRepository.countByPhase(Phase.RONDA32) == 0) {
+                    List<Match> playoffs = new ArrayList<>();
+                    seedRoundOf32(playoffs);
+                    seedRoundOf16(playoffs);
+                    seedQuarterFinals(playoffs);
+                    seedSemiFinals(playoffs);
+                    seedFinalWeekend(playoffs);
+                    matchRepository.saveAll(playoffs);
+                }
             }
 
             if (worldCupSyncService.isEnabled()) {
                 worldCupSyncService.syncGroupStageMatches();
+                worldCupSyncService.syncKnockoutMatches();
             }
         };
     }

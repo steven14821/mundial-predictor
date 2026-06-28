@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,9 +37,118 @@ class MundialPredictorApplicationTests {
 	@WithUserDetails("Steven")
 	void testMatchesPage() throws Exception {
 		mockMvc.perform(get("/matches"))
-				.andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
 				.andExpect(status().isOk());
 	}
+
+	@Test
+	@WithUserDetails("Steven")
+	void testMatchesPageShowsPredictionBadge() throws Exception {
+		User user = userRepository.findByUsername("Steven").orElseThrow();
+		Match match = createMatch("Colombia", "Brasil", 0, 0);
+		match.setFinished(false);
+		match.setMatchDate(LocalDateTime.now().plusDays(3));
+		match.setHomeTeamExternalId(1001);
+		match.setAwayTeamExternalId(1002);
+		match = matchRepository.save(match);
+
+		Prediction prediction = new Prediction();
+		prediction.setUser(user);
+		prediction.setMatch(match);
+		prediction.setPredictedHomeScore(2);
+		prediction.setPredictedAwayScore(1);
+		predictionRepository.save(prediction);
+
+		String html = mockMvc.perform(get("/matches"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertTrue(html.contains("Ya predijiste"), "Debe mostrar badge cuando el usuario ya predijo");
+		assertTrue(html.contains("2 - 1"), "Debe mostrar el marcador predicho");
+	}
+
+	@Test
+	@WithUserDetails("Steven")
+	void testMatchesPageFindsPredictionOnDuplicateFixture() throws Exception {
+		User user = userRepository.findByUsername("Steven").orElseThrow();
+
+		Match oldRow = createMatch("Colombia", "Brasil", 0, 0);
+		oldRow.setFinished(false);
+		oldRow.setMatchDate(LocalDateTime.now().plusDays(3));
+		oldRow.setHomeTeamExternalId(2001);
+		oldRow.setAwayTeamExternalId(2002);
+		oldRow = matchRepository.save(oldRow);
+
+		Match listedRow = createMatch("Colombia", "Brasil", 0, 0);
+		listedRow.setFinished(false);
+		listedRow.setMatchDate(LocalDateTime.now().plusDays(3));
+		listedRow.setHomeTeamExternalId(2001);
+		listedRow.setAwayTeamExternalId(2002);
+		listedRow = matchRepository.save(listedRow);
+
+		Prediction prediction = new Prediction();
+		prediction.setUser(user);
+		prediction.setMatch(oldRow);
+		prediction.setPredictedHomeScore(3);
+		prediction.setPredictedAwayScore(2);
+		predictionRepository.save(prediction);
+
+		String html = mockMvc.perform(get("/matches"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse()
+				.getContentAsString();
+
+		assertTrue(html.contains("Ya predijiste"), "Debe reconocer prediccion aunque este en otro id de partido");
+		assertTrue(html.contains("3 - 2"), "Debe mostrar marcador de la prediccion existente");
+	}
+
+	@Test
+	@WithUserDetails("Steven")
+	void testPlayoffsPage() throws Exception {
+		mockMvc.perform(get("/playoffs"))
+				.andExpect(status().isOk());
+	}
+
+
+	@Test
+	@WithUserDetails("admin")
+	void testEditMatch() throws Exception {
+		// Crear match de prueba
+		Match match = createMatch("LocalTest", "VisitaTest", 0, 0);
+		match.setFinished(false);
+		match = matchRepository.save(match);
+
+		// 1. Probar GET edit form
+		mockMvc.perform(get("/admin/matches/" + match.getId() + "/edit"))
+				.andExpect(status().isOk());
+
+		// 2. Probar POST edit
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/admin/matches/" + match.getId() + "/edit")
+				.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+				.param("homeTeam", "Colombia")
+				.param("awayTeam", "Alemania")
+				.param("phase", "RONDA32")
+				.param("matchDate", "2026-06-29T13:00"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/admin/matches"));
+
+		// Verificar que se actualizó en la BD
+		Match updated = matchRepository.findById(match.getId()).orElseThrow();
+		assertEquals("Colombia", updated.getHomeTeam());
+	}
+
+	@Test
+	@WithUserDetails("admin")
+	void testInitSchedule() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/admin/matches/init-schedule")
+				.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/admin/matches"));
+	}
+
+
 
 
 	@Autowired

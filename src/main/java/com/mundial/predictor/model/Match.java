@@ -38,6 +38,15 @@ public class Match {
 
     private boolean finished = false;
 
+    @Transient
+    private Prediction myPrediction;
+
+    @Transient
+    private Prediction duelPrediction1;
+
+    @Transient
+    private Prediction duelPrediction2;
+
     public Match() {}
 
     // Zona horaria Colombia (UTC-5) — las fechas de partidos se guardan en hora Colombia
@@ -99,4 +108,13 @@ public class Match {
 
     public boolean isFinished() { return finished; }
     public void setFinished(boolean finished) { this.finished = finished; }
+
+    public Prediction getMyPrediction() { return myPrediction; }
+    public void setMyPrediction(Prediction myPrediction) { this.myPrediction = myPrediction; }
+
+    public Prediction getDuelPrediction1() { return duelPrediction1; }
+    public void setDuelPrediction1(Prediction duelPrediction1) { this.duelPrediction1 = duelPrediction1; }
+
+    public Prediction getDuelPrediction2() { return duelPrediction2; }
+    public void setDuelPrediction2(Prediction duelPrediction2) { this.duelPrediction2 = duelPrediction2; }
 }

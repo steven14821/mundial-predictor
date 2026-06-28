@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout :: head('Nuevo partido')}"></head>
+<head th:replace="~{layout :: head(${match.id != null ? 'Editar partido' : 'Nuevo partido'})}"></head>
 <body>
 <nav th:replace="~{layout :: navbar}"></nav>
 <main class="container py-4">
     <div class="mb-4">
-        <h1 class="h3 mb-1">Nuevo partido</h1>
-        <p class="text-secondary mb-0">Registra un partido para abrir predicciones.</p>
+        <h1 class="h3 mb-1" th:text="${match.id != null ? 'Editar partido' : 'Nuevo partido'}">Nuevo partido</h1>
+        <p class="text-secondary mb-0" th:text="${match.id != null ? 'Modifica los detalles del partido.' : 'Registra un partido para abrir predicciones.'}">Registra un partido para abrir predicciones.</p>
     </div>
 
     <div class="card shadow-sm">
         <div class="card-body">
-            <form th:action="@{/admin/matches/new}" th:object="${match}" method="post" class="row g-3">
+            <form th:action="${match.id != null ? '/admin/matches/' + match.id + '/edit' : '/admin/matches/new'}" th:object="${match}" method="post" class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Equipo local</label>
                     <input type="text" th:field="*{homeTeam}" class="form-control" required>
@@ -35,9 +35,10 @@
                         <option th:each="phase : ${phases}" th:value="${phase}" th:text="${phase.displayName}"></option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4" id="groupField"
+                     th:style="${match.phase != null and match.phase.groupStage} ? '' : 'display:none'">
                     <label class="form-label">Grupo</label>
-                    <input type="text" th:field="*{matchGroup}" class="form-control">
+                    <input type="text" th:field="*{matchGroup}" class="form-control" placeholder="A, B, C...">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Fecha y hora</label>
@@ -51,5 +52,24 @@
     </div>
 </main>
 <div th:replace="~{layout :: footer}"></div>
+<script>
+    (function () {
+        var phaseSelect = document.querySelector('select[name="phase"]');
+        var groupField = document.getElementById('groupField');
+        if (!phaseSelect || !groupField) return;
+
+        function toggleGroupField() {
+            var isGroupStage = phaseSelect.value === 'GRUPOS';
+            groupField.style.display = isGroupStage ? '' : 'none';
+            if (!isGroupStage) {
+                var groupInput = groupField.querySelector('input[name="matchGroup"]');
+                if (groupInput) groupInput.value = '';
+            }
+        }
+
+        phaseSelect.addEventListener('change', toggleGroupField);
+        toggleGroupField();
+    })();
+</script>
 </body>
 </html>

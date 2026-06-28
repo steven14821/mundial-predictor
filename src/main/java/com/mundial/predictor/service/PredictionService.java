@@ -29,6 +29,10 @@ public class PredictionService {
         return predictionRepository.findByUserAndMatch(user, match);
     }
 
+    public Optional<Prediction> findPredictionForUserAndMatch(User user, Match match) {
+        return Optional.ofNullable(resolvePredictionForMatch(predictionRepository.findByUser(user), match));
+    }
+
     public List<Prediction> findByMatch(Match match) {
         return predictionRepository.findByMatch(match);
     }
@@ -53,8 +57,8 @@ public class PredictionService {
 
     @Transactional
     public void savePrediction(User user, Match match, int homeScore, int awayScore) {
-        Prediction prediction = predictionRepository.findByUserAndMatch(user, match)
-                .orElse(new Prediction());
+        Prediction existing = resolvePredictionForMatch(predictionRepository.findByUser(user), match);
+        Prediction prediction = existing != null ? existing : new Prediction();
 
         prediction.setUser(user);
         prediction.setMatch(match);
@@ -136,11 +140,68 @@ public class PredictionService {
     }
 
     public Map<Long, Prediction> getPredictionsMapByMatch(User user, List<Match> matches) {
+        List<Prediction> userPredictions = predictionRepository.findByUser(user);
         Map<Long, Prediction> map = new HashMap<>();
         for (Match match : matches) {
-            predictionRepository.findByUserAndMatch(user, match)
-                    .ifPresent(p -> map.put(match.getId(), p));
+            Prediction prediction = resolvePredictionForMatch(userPredictions, match);
+            if (prediction != null) {
+                map.put(match.getId(), prediction);
+            }
         }
         return map;
+    }
+
+    /**
+     * Enlaza predicciones a cada partido para la vista de listado.
+     * Resuelve duplicados de partido (p. ej. tras sync API) comparando IDs externos.
+     */
+    public void attachPredictionsForListView(User currentUser, List<User> duelPlayers, List<Match> matches) {
+        List<Prediction> myPredictions = predictionRepository.findByUser(currentUser);
+        Map<Long, List<Prediction>> predictionsByPlayerId = new HashMap<>();
+        predictionsByPlayerId.put(currentUser.getId(), myPredictions);
+
+        for (User player : duelPlayers) {
+            if (!predictionsByPlayerId.containsKey(player.getId())) {
+                predictionsByPlayerId.put(player.getId(), predictionRepository.findByUser(player));
+            }
+        }
+
+        for (Match match : matches) {
+            match.setMyPrediction(resolvePredictionForMatch(myPredictions, match));
+
+            if (duelPlayers.size() > 0) {
+                List<Prediction> p1 = predictionsByPlayerId.get(duelPlayers.get(0).getId());
+                match.setDuelPrediction1(resolvePredictionForMatch(p1, match));
+            }
+            if (duelPlayers.size() > 1) {
+                List<Prediction> p2 = predictionsByPlayerId.get(duelPlayers.get(1).getId());
+                match.setDuelPrediction2(resolvePredictionForMatch(p2, match));
+            }
+        }
+    }
+
+    private Prediction resolvePredictionForMatch(List<Prediction> predictions, Match match) {
+        if (predictions == null || predictions.isEmpty()) {
+            return null;
+        }
+        for (Prediction prediction : predictions) {
+            if (matchesSameFixture(prediction.getMatch(), match)) {
+                return prediction;
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesSameFixture(Match stored, Match listed) {
+        if (stored.getId() != null && stored.getId().equals(listed.getId())) {
+            return true;
+        }
+        if (stored.getHomeTeamExternalId() != null && listed.getHomeTeamExternalId() != null
+                && stored.getAwayTeamExternalId() != null && listed.getAwayTeamExternalId() != null
+                && stored.getHomeTeamExternalId().equals(listed.getHomeTeamExternalId())
+                && stored.getAwayTeamExternalId().equals(listed.getAwayTeamExternalId())) {
+            return true;
+        }
+        return false;
     }
 }
