@@ -11,6 +11,7 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findAllByOrderByMatchDateAsc();
     List<Match> findByFinishedFalseAndMatchDateAfterOrderByMatchDateAsc(LocalDateTime date);
     List<Match> findByPhaseOrderByMatchDateAsc(Phase phase);
+    List<Match> findByPhase(Phase phase);
     List<Match> findByMatchGroupOrderByMatchDateAsc(String matchGroup);
     long countByPhase(Phase phase);
     void deleteByPhase(Phase phase);
