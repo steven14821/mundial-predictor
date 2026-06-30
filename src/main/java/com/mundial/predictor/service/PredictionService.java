@@ -2,6 +2,7 @@ package com.mundial.predictor.service;
 
 import com.mundial.predictor.model.Match;
 import com.mundial.predictor.model.Prediction;
+import com.mundial.predictor.repository.MatchRepository; // Import MatchRepository
 import com.mundial.predictor.model.User;
 import com.mundial.predictor.repository.PredictionRepository;
 import com.mundial.predictor.repository.UserRepository;
@@ -19,10 +20,12 @@ public class PredictionService {
 
     private final PredictionRepository predictionRepository;
     private final UserRepository userRepository;
+    private final MatchRepository matchRepository; // Declare MatchRepository
 
-    public PredictionService(PredictionRepository predictionRepository, UserRepository userRepository) {
+    public PredictionService(PredictionRepository predictionRepository, UserRepository userRepository, MatchRepository matchRepository) { // Inject MatchRepository
         this.predictionRepository = predictionRepository;
         this.userRepository = userRepository;
+        this.matchRepository = matchRepository; // Initialize MatchRepository
     }
 
     public Optional<Prediction> findByUserAndMatch(User user, Match match) {
@@ -166,16 +169,29 @@ public class PredictionService {
             }
         }
 
-        for (Match match : matches) {
-            match.setMyPrediction(resolvePredictionForMatch(myPredictions, match));
-
-            if (duelPlayers.size() > 0) {
-                List<Prediction> p1 = predictionsByPlayerId.get(duelPlayers.get(0).getId());
-                match.setDuelPrediction1(resolvePredictionForMatch(p1, match));
+        for (Match originalMatch : matches) {
+            // Recargar el partido de la base de datos para asegurar que tenemos
+            // los últimos resultados y el estado 'finished'.
+            // Esto es crucial para reflejar las actualizaciones del admin inmediatamente.
+            Optional<Match> freshMatchOpt = matchRepository.findById(originalMatch.getId());
+            if (freshMatchOpt.isEmpty()) {
+                // Si el partido no se encuentra (ej. fue eliminado), lo saltamos.
+                // En un escenario normal, todos los partidos deberían existir.
+                continue;
             }
-            if (duelPlayers.size() > 1) {
-                List<Prediction> p2 = predictionsByPlayerId.get(duelPlayers.get(1).getId());
-                match.setDuelPrediction2(resolvePredictionForMatch(p2, match));
+            Match freshMatch = freshMatchOpt.get();
+
+            originalMatch.setMyPrediction(resolvePredictionForMatch(myPredictions, freshMatch));
+
+            if (originalMatch.getMyPrediction() != null || freshMatch.isFinished()) {
+                if (duelPlayers.size() > 0) {
+                    List<Prediction> p1 = predictionsByPlayerId.get(duelPlayers.get(0).getId());
+                    originalMatch.setDuelPrediction1(resolvePredictionForMatch(p1, freshMatch));
+                }
+                if (duelPlayers.size() > 1) {
+                    List<Prediction> p2 = predictionsByPlayerId.get(duelPlayers.get(1).getId());
+                    originalMatch.setDuelPrediction2(resolvePredictionForMatch(p2, freshMatch));
+                }
             }
         }
     }
@@ -193,13 +209,23 @@ public class PredictionService {
     }
 
     private boolean matchesSameFixture(Match stored, Match listed) {
+        // 1. Mismo ID en BD
         if (stored.getId() != null && stored.getId().equals(listed.getId())) {
             return true;
         }
+        // 2. Mismos IDs externos (equipos de la API)
         if (stored.getHomeTeamExternalId() != null && listed.getHomeTeamExternalId() != null
                 && stored.getAwayTeamExternalId() != null && listed.getAwayTeamExternalId() != null
                 && stored.getHomeTeamExternalId().equals(listed.getHomeTeamExternalId())
                 && stored.getAwayTeamExternalId().equals(listed.getAwayTeamExternalId())) {
+            return true;
+        }
+        // 3. Fallback: mismos nombres de equipos + misma fecha (cubre partidos re-creados sin externalId)
+        if (stored.getHomeTeam() != null && stored.getAwayTeam() != null
+                && stored.getMatchDate() != null && listed.getMatchDate() != null
+                && stored.getHomeTeam().equalsIgnoreCase(listed.getHomeTeam())
+                && stored.getAwayTeam().equalsIgnoreCase(listed.getAwayTeam())
+                && stored.getMatchDate().toLocalDate().equals(listed.getMatchDate().toLocalDate())) {
             return true;
         }
         return false;

@@ -20,8 +20,19 @@
                     <i class="bi bi-arrow-repeat"></i> Sincronizar resultados y puntos
                 </button>
             </form>
+            <form th:action="@{/admin/matches/fix-scores}" method="post" class="m-0">
+                <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('¿Forzar corrección de scores y recalcular todos los puntos?')">
+                    <i class="bi bi-wrench-fill"></i> Corregir scores (forzar)
+                </button>
+            </form>
             <form th:action="@{/admin/matches/sync-group-stage}" method="post" class="m-0">
                 <button type="submit" class="btn btn-outline-primary">Sync grupos API</button>
+            </form>
+            <form th:action="@{/admin/matches/reset-knockout}" method="post" class="m-0">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Resetear playoffs? Se borrarán y resembrarán. Luego debes sincronizar desde la API.')">
+                    <i class="bi bi-arrow-counterclockwise"></i> Resetear playoffs
+                </button>
             </form>
             <form th:action="@{/admin/matches/sync-knockout}" method="post" class="m-0">
                 <button type="submit" class="btn btn-warning">
@@ -57,7 +68,7 @@
                              th:text="${'Grupo ' + match.matchGroup}">Grupo A</div>
                     </td>
                     <td th:text="${#temporals.format(match.matchDate, 'dd/MM/yyyy HH:mm')}">Fecha</td>
-                    <td th:text="${match.finished ? 'Finalizado' : 'Pendiente'}">Estado</td>
+                    <td th:text="${match.finished ? match.displayScore : 'Pendiente'}">Estado</td>
                     <td class="text-end">
                         <a th:href="@{|/admin/matches/${match.id}/edit|}" class="btn btn-outline-primary btn-sm me-1">Editar</a>
                         <a th:href="@{|/admin/matches/${match.id}/score|}" class="btn btn-outline-secondary btn-sm">Cargar resultado</a>

@@ -89,6 +89,7 @@
                         <!-- Status badges -->
                         <div class="m-fixture__badges">
                             <span class="m-tag m-tag--neutral" th:text="${match.statusLabel}">Estado</span>
+                            <span class="m-tag m-tag--score" th:if="${match.finished}" th:text="${match.displayScore}">0 - 0</span>
                             <span class="m-tag m-tag--info" th:if="${match.myPrediction != null}">Ya predijiste</span>
                             <span class="m-tag m-tag--warn" th:unless="${match.myPrediction != null}">Sin prediccion</span>
                             <span class="m-tag m-tag--score"
@@ -105,13 +106,13 @@
                                 <div class="m-fixture__duel-player">
                                     <span class="m-fixture__duel-name"
                                           th:text="${duelPlayers[0].displayName != null ? duelPlayers[0].displayName : duelPlayers[0].username}">Jugador 1</span>
-                                    <!-- Si tiene predicción y es visible -->
+                                    <!-- Si tiene predicción y es visible (partido bloqueado/terminado, o soy yo, o ya predije) -->
                                     <span class="m-fixture__duel-pick"
                                           th:if="${match.duelPrediction1 != null and (duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
                                           th:text="${match.duelPrediction1.predictedHomeScore + '-' + match.duelPrediction1.predictedAwayScore}">0-0</span>
-                                    <!-- Si tiene predicción pero está oculta -->
+                                    <!-- Si tiene predicción pero está oculta (partido abierto y aún no predije) -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${match.duelPrediction1 != null and !(duelPlayers[0].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:if="${match.duelPrediction1 != null and duelPlayers[0].id != currentUser.id and currentUser.role.name() != 'ADMIN' and !match.isLocked() and match.myPrediction == null}"
                                           style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto <i class="bi bi-lock-fill"></i></span>
                                     <!-- Si no tiene predicción -->
                                     <span class="m-fixture__duel-pick"
@@ -132,7 +133,7 @@
                                           th:text="${match.duelPrediction2.predictedHomeScore + '-' + match.duelPrediction2.predictedAwayScore}">0-0</span>
                                     <!-- Si tiene predicción pero está oculta -->
                                     <span class="m-fixture__duel-pick"
-                                          th:if="${match.duelPrediction2 != null and !(duelPlayers[1].id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or match.myPrediction != null)}"
+                                          th:if="${match.duelPrediction2 != null and duelPlayers[1].id != currentUser.id and currentUser.role.name() != 'ADMIN' and !match.isLocked() and match.myPrediction == null}"
                                           style="font-style: italic; color: var(--color-text-light); opacity: 0.6; font-size: 0.85rem;">oculto <i class="bi bi-lock-fill"></i></span>
                                     <!-- Si no tiene predicción -->
                                     <span class="m-fixture__duel-pick"

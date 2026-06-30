@@ -276,6 +276,57 @@
     padding: 0 4px;
 }
 
+.playoff-score-col {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.playoff-pen-score {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--color-gold);
+    opacity: 0.9;
+}
+
+/* Ganador en eliminatorias */
+.playoff-team-row.winner .playoff-team-name {
+    color: var(--color-gold);
+    font-weight: 900;
+}
+
+.playoff-team-row.winner .playoff-score {
+    color: var(--color-gold);
+}
+
+.playoff-team-row.eliminated .playoff-team-name {
+    opacity: 0.4;
+    text-decoration: line-through;
+    text-decoration-color: rgba(255,255,255,0.3);
+}
+
+.playoff-team-row.eliminated .playoff-score {
+    opacity: 0.4;
+}
+
+.playoff-winner-icon {
+    font-size: 0.8rem;
+    color: var(--color-gold);
+    flex-shrink: 0;
+}
+
+.playoff-penalties-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-gold);
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
 /* Right datetime block */
 .playoff-card-right {
     border-left: 1px solid rgba(255, 255, 255, 0.08);

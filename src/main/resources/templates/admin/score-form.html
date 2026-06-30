@@ -24,6 +24,14 @@
                     <label class="form-label" th:text="${match.awayTeam}">Visitante</label>
                     <input type="number" min="0" name="awayScore" class="form-control" required>
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label">Penales Local <small class="text-secondary">(opcional)</small></label>
+                    <input type="number" min="0" name="homePenaltyScore" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Penales Visitante <small class="text-secondary">(opcional)</small></label>
+                    <input type="number" min="0" name="awayPenaltyScore" class="form-control">
+                </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary">Guardar resultado</button>
                 </div>

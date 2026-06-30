@@ -44,6 +44,17 @@ public class AdminController {
         return "redirect:/admin/matches";
     }
 
+    @PostMapping("/matches/reset-knockout")
+    public String resetKnockout(RedirectAttributes ra) {
+        try {
+            int count = matchService.resetKnockoutMatches();
+            ra.addFlashAttribute("success", count + " playoffs eliminados y resembrados. Usa 'Sync Eliminatorias (API)' para cargar datos reales.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "No se pudieron resetear los playoffs: " + e.getMessage() + ". Si hay predicciones ligadas, borra las predicciones primero.");
+        }
+        return "redirect:/admin/matches";
+    }
+
     @PostMapping("/matches/init-schedule")
     public String initSchedule(RedirectAttributes ra) {
         try {
@@ -94,6 +105,26 @@ public class AdminController {
         return "redirect:/admin/matches";
     }
 
+    /**
+     * Fuerza re-sync de todos los scores desde la API y recalcula puntos de TODOS
+     * los partidos terminados. Útil para corregir datos mal guardados.
+     */
+    @PostMapping("/matches/fix-scores")
+    public String fixScores(RedirectAttributes ra) {
+        WorldCupSyncService.SyncResultWithMatches result = worldCupSyncService.syncResults();
+
+        if (!result.success()) {
+            ra.addFlashAttribute("error", "[Error] " + result.message());
+            return "redirect:/admin/matches";
+        }
+
+        // Recalcular puntos de TODOS los partidos terminados (no solo los recién terminados)
+        predictionService.recalculateAllTotals();
+
+        ra.addFlashAttribute("success", "[OK] Scores corregidos y puntos recalculados para todos los partidos.");
+        return "redirect:/admin/matches";
+    }
+
 
     @GetMapping("/matches/{id}/edit")
     public String editMatchForm(@PathVariable Long id, Model model) {
@@ -137,8 +168,10 @@ public class AdminController {
     public String setScore(@PathVariable Long id,
                            @RequestParam int homeScore,
                            @RequestParam int awayScore,
+                           @RequestParam(required = false) Integer homePenaltyScore,
+                           @RequestParam(required = false) Integer awayPenaltyScore,
                            RedirectAttributes ra) {
-        Match match = matchService.setScore(id, homeScore, awayScore);
+        Match match = matchService.setScore(id, homeScore, awayScore, homePenaltyScore, awayPenaltyScore);
         predictionService.calculatePoints(match);
         ra.addFlashAttribute("success", "Resultado registrado y puntos calculados.");
         return "redirect:/admin/matches";

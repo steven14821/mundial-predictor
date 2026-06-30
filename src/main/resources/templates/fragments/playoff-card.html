@@ -10,7 +10,8 @@
                 <div class="playoff-card-left">
                     <span class="playoff-status-badge" th:text="${match.finished ? 'Terminado' : (match.isLocked() ? 'Bloqueado' : 'Programado')}">Scheduled</span>
 
-                    <div class="playoff-team-row">
+                    <!-- Fila equipo local -->
+                    <div class="playoff-team-row" th:classappend="${match.finished and match.homeWinner} ? 'winner' : (${match.finished and match.awayWinner} ? 'eliminated' : '')">
                         <div class="playoff-team-identity">
                             <img th:if="${match.homeFlag != null and !#strings.isEmpty(match.homeFlag)}"
                                  th:src="${match.homeFlag}"
@@ -20,11 +21,18 @@
                                 <i class="bi bi-flag-fill"></i>
                             </div>
                             <span class="playoff-team-name" th:text="${match.homeTeam}">Germany</span>
+                            <!-- Trofeo si ganó -->
+                            <span th:if="${match.finished and match.homeWinner}" class="playoff-winner-icon" title="Avanzó">&#10003;</span>
                         </div>
-                        <span class="playoff-score" th:if="${match.finished}" th:text="${match.homeScore}">0</span>
+                        <div th:if="${match.finished}" class="playoff-score-col">
+                            <span class="playoff-score" th:text="${match.homeScore}">0</span>
+                            <span th:if="${match.hasPenalties()}" class="playoff-pen-score"
+                                  th:text="${'(' + match.homePenaltyScore + ')'}"></span>
+                        </div>
                     </div>
 
-                    <div class="playoff-team-row">
+                    <!-- Fila equipo visitante -->
+                    <div class="playoff-team-row" th:classappend="${match.finished and match.awayWinner} ? 'winner' : (${match.finished and match.homeWinner} ? 'eliminated' : '')">
                         <div class="playoff-team-identity">
                             <img th:if="${match.awayFlag != null and !#strings.isEmpty(match.awayFlag)}"
                                  th:src="${match.awayFlag}"
@@ -34,8 +42,19 @@
                                 <i class="bi bi-flag-fill"></i>
                             </div>
                             <span class="playoff-team-name" th:text="${match.awayTeam}">Paraguay</span>
+                            <!-- Trofeo si ganó -->
+                            <span th:if="${match.finished and match.awayWinner}" class="playoff-winner-icon" title="Avanzó">&#10003;</span>
                         </div>
-                        <span class="playoff-score" th:if="${match.finished}" th:text="${match.awayScore}">0</span>
+                        <div th:if="${match.finished}" class="playoff-score-col">
+                            <span class="playoff-score" th:text="${match.awayScore}">0</span>
+                            <span th:if="${match.hasPenalties()}" class="playoff-pen-score"
+                                  th:text="${'(' + match.awayPenaltyScore + ')'}"></span>
+                        </div>
+                    </div>
+
+                    <!-- Indicador de penales -->
+                    <div th:if="${match.finished and match.hasPenalties()}" class="playoff-penalties-label">
+                        Definido en penales
                     </div>
                 </div>
 

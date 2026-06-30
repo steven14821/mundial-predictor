@@ -30,11 +30,17 @@ public class Match {
     private String matchGroup;
 
     @Column(nullable = false)
-    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    @DateTimeFormat(pattern = "yyyy-MM-dd\'T\'HH:mm")
     private LocalDateTime matchDate;
 
     private Integer homeScore;
     private Integer awayScore;
+
+    private Integer homeExtraTimeScore;
+    private Integer awayExtraTimeScore;
+
+    private Integer homePenaltyScore;
+    private Integer awayPenaltyScore;
 
     private boolean finished = false;
 
@@ -49,7 +55,7 @@ public class Match {
 
     public Match() {}
 
-    // Zona horaria Colombia (UTC-5) — las fechas de partidos se guardan en hora Colombia
+    // Zona horaria Colombia (UTC-5) - las fechas de partidos se guardan en hora Colombia
     private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
 
     public boolean isLocked() {
@@ -106,6 +112,80 @@ public class Match {
     public Integer getAwayScore() { return awayScore; }
     public void setAwayScore(Integer awayScore) { this.awayScore = awayScore; }
 
+    public Integer getHomeExtraTimeScore() { return homeExtraTimeScore; }
+    public void setHomeExtraTimeScore(Integer homeExtraTimeScore) { this.homeExtraTimeScore = homeExtraTimeScore; }
+
+    public Integer getAwayExtraTimeScore() { return awayExtraTimeScore; }
+    public void setAwayExtraTimeScore(Integer awayExtraTimeScore) { this.awayExtraTimeScore = awayExtraTimeScore; }
+
+    public Integer getHomePenaltyScore() { return homePenaltyScore; }
+    public void setHomePenaltyScore(Integer homePenaltyScore) { this.homePenaltyScore = homePenaltyScore; }
+
+    public Integer getAwayPenaltyScore() { return awayPenaltyScore; }
+    public void setAwayPenaltyScore(Integer awayPenaltyScore) { this.awayPenaltyScore = awayPenaltyScore; }
+
+    public boolean hasPenalties() {
+        return homePenaltyScore != null && awayPenaltyScore != null;
+    }
+
+    public boolean hasExtraTime() {
+        return homeExtraTimeScore != null && awayExtraTimeScore != null;
+    }
+
+    public String getDisplayScore() {
+        if (homeScore == null || awayScore == null) return "-";
+
+        // Armar score final: 90min + ET (si hubo)
+        int displayHome = homeScore + (homeExtraTimeScore != null ? homeExtraTimeScore : 0);
+        int displayAway = awayScore + (awayExtraTimeScore != null ? awayExtraTimeScore : 0);
+        String base = displayHome + " - " + displayAway;
+
+        if (hasPenalties()) {
+            base += " (pen: " + homePenaltyScore + " - " + awayPenaltyScore + ")";
+        } else if (hasExtraTime()) {
+            base += " (aet)";
+        }
+
+        return base;
+    }
+
+    /**
+     * Retorna el nombre del equipo ganador (quien avanzó).
+     * En caso de penales, el ganador es quien tenga más goles en la tanda.
+     * Si el partido no terminó o está empatado sin penales, retorna null.
+     */
+    public String getWinner() {
+        if (!finished || homeScore == null || awayScore == null) return null;
+
+        if (hasPenalties()) {
+            if (homePenaltyScore > awayPenaltyScore) return homeTeam;
+            if (awayPenaltyScore > homePenaltyScore) return awayTeam;
+            return null;
+        }
+
+        // Comparar score total (90min + ET si hubo)
+        int totalHome = homeScore + (homeExtraTimeScore != null ? homeExtraTimeScore : 0);
+        int totalAway = awayScore + (awayExtraTimeScore != null ? awayExtraTimeScore : 0);
+
+        if (totalHome > totalAway) return homeTeam;
+        if (totalAway > totalHome) return awayTeam;
+        return null; // empate sin penales (fase de grupos)
+    }
+
+    /**
+     * true si el equipo local avanzó (ganó en 90min o en penales).
+     */
+    public boolean isHomeWinner() {
+        return homeTeam != null && homeTeam.equals(getWinner());
+    }
+
+    /**
+     * true si el equipo visitante avanzó (ganó en 90min o en penales).
+     */
+    public boolean isAwayWinner() {
+        return awayTeam != null && awayTeam.equals(getWinner());
+    }
+
     public boolean isFinished() { return finished; }
     public void setFinished(boolean finished) { this.finished = finished; }
 
@@ -118,3 +198,4 @@ public class Match {
     public Prediction getDuelPrediction2() { return duelPrediction2; }
     public void setDuelPrediction2(Prediction duelPrediction2) { this.duelPrediction2 = duelPrediction2; }
 }
+

@@ -75,24 +75,11 @@ public class WorldCupSyncService {
                 return new SyncResult(false, "La API no devolvio partidos de fase de grupos.");
             }
 
-            // Upsert seguro: actualizar existentes, insertar nuevos
-            // NUNCA borrar partidos que tengan predicciones asociadas
+            List<Match> allCurrentDbMatches = matchRepository.findByPhase(Phase.GRUPOS); // Solo partidos de fase de grupos
             int updated = 0;
             int inserted = 0;
             for (Match fetched : fetchedMatches) {
-                if (fetched.getHomeTeamExternalId() == null || fetched.getAwayTeamExternalId() == null) {
-                    // Si no tiene IDs externos, solo insertar si no hay partidos de grupos aún
-                    if (matchRepository.countByPhase(Phase.GRUPOS) == 0) {
-                        matchRepository.save(fetched);
-                        inserted++;
-                    }
-                    continue;
-                }
-
-                java.util.Optional<Match> existing = matchRepository
-                        .findByHomeTeamExternalIdAndAwayTeamExternalId(
-                                fetched.getHomeTeamExternalId(),
-                                fetched.getAwayTeamExternalId());
+                Optional<Match> existing = findExistingMatchInDb(fetched, allCurrentDbMatches);
 
                 if (existing.isPresent()) {
                     // Actualizar datos del partido existente sin tocar predicciones
@@ -104,11 +91,21 @@ public class WorldCupSyncService {
                     match.setMatchDate(fetched.getMatchDate());
                     match.setMatchGroup(fetched.getMatchGroup());
                     match.setPhase(fetched.getPhase());
-                    // Solo actualizar resultado si el partido terminó
+                    match.setHomeTeamExternalId(fetched.getHomeTeamExternalId()); // Asegurar que los IDs externos se actualicen
+                    match.setAwayTeamExternalId(fetched.getAwayTeamExternalId()); // Asegurar que los IDs externos se actualicen
+                    // Solo actualizar resultado si el partido terminÃ³
                     if (fetched.isFinished()) {
                         match.setFinished(true);
                         match.setHomeScore(fetched.getHomeScore());
                         match.setAwayScore(fetched.getAwayScore());
+                        if (fetched.hasExtraTime()) {
+                            match.setHomeExtraTimeScore(fetched.getHomeExtraTimeScore());
+                            match.setAwayExtraTimeScore(fetched.getAwayExtraTimeScore());
+                        }
+                        if (fetched.hasPenalties()) {
+                            match.setHomePenaltyScore(fetched.getHomePenaltyScore());
+                            match.setAwayPenaltyScore(fetched.getAwayPenaltyScore());
+                        }
                     }
                     matchRepository.save(match);
                     updated++;
@@ -127,8 +124,8 @@ public class WorldCupSyncService {
 
     /**
      * Sincroniza SOLO los resultados finales de partidos ya existentes en la BD.
-     * NO borra ni recrea partidos — hace upsert seguro preservando predicciones.
-     * Devuelve los partidos que recién terminaron para que el caller calcule puntos.
+     * NO borra ni recrea partidos â€” hace upsert seguro preservando predicciones.
+     * Devuelve los partidos que reciÃ©n terminaron para que el caller calcule puntos.
      */
     @Transactional
     public SyncResultWithMatches syncResults() {
@@ -170,8 +167,23 @@ public class WorldCupSyncService {
                 com.fasterxml.jackson.databind.JsonNode fullTime = node.path("score").path("fullTime");
                 if (!fullTime.path("home").isNumber() || !fullTime.path("away").isNumber()) continue;
 
-                int homeScore = fullTime.path("home").asInt();
-                int awayScore = fullTime.path("away").asInt();
+                int fullTimeHome = fullTime.path("home").asInt();
+                int fullTimeAway = fullTime.path("away").asInt();
+
+                // La API devuelve fullTime acumulado (incluye goles de ET).
+                // extraTime contiene solo los goles del tiempo extra.
+                // homeScore/awayScore deben ser los 90 minutos reales = fullTime - extraTime.
+                com.fasterxml.jackson.databind.JsonNode extraTime = node.path("score").path("extraTime");
+                Integer homeExtraTime = null;
+                Integer awayExtraTime = null;
+                if (extraTime.path("home").isNumber() && extraTime.path("away").isNumber()) {
+                    homeExtraTime = extraTime.path("home").asInt();
+                    awayExtraTime = extraTime.path("away").asInt();
+                }
+
+                // Score de 90 min = fullTime menos lo que se hizo en ET (si hubo ET)
+                int homeScore = fullTimeHome - (homeExtraTime != null ? homeExtraTime : 0);
+                int awayScore = fullTimeAway - (awayExtraTime != null ? awayExtraTime : 0);
 
                 java.util.Optional<Match> existing =
                         matchRepository.findByHomeTeamExternalIdAndAwayTeamExternalId(homeExtId, awayExtId);
@@ -183,18 +195,27 @@ public class WorldCupSyncService {
 
                 match.setHomeScore(homeScore);
                 match.setAwayScore(awayScore);
+                if (homeExtraTime != null && awayExtraTime != null) {
+                    match.setHomeExtraTimeScore(homeExtraTime);
+                    match.setAwayExtraTimeScore(awayExtraTime);
+                }
                 match.setFinished(true);
+                JsonNode penaltiesNode = node.path("score").path("penalties");
+                if (penaltiesNode.path("home").isNumber() && penaltiesNode.path("away").isNumber()) {
+                    match.setHomePenaltyScore(penaltiesNode.path("home").asInt());
+                    match.setAwayPenaltyScore(penaltiesNode.path("away").asInt());
+                }
                 matchRepository.save(match);
                 updated++;
 
                 if (!wasFinished) {
-                    newlyFinished.add(match); // solo los que recién terminaron
+                    newlyFinished.add(match); // solo los que reciÃ©n terminaron
                 }
             }
 
             String msg = updated == 0
                     ? "No hay resultados nuevos para actualizar."
-                    : updated + " partido(s) actualizado(s). " + newlyFinished.size() + " recién finalizado(s) → puntos calculados.";
+                    : updated + " partido(s) actualizado(s). " + newlyFinished.size() + " reciÃ©n finalizado(s) â†’ puntos calculados.";
 
             return new SyncResultWithMatches(true, msg, newlyFinished);
 
@@ -207,8 +228,8 @@ public class WorldCupSyncService {
 
     /**
      * Sincroniza los partidos de las fases eliminatorias (mata a mata) desde la API.
-     * Empareja por IDs externos, fecha cercana o posición dentro de la fase.
-     * Inserta partidos nuevos si la API tiene más cruces que la BD.
+     * Empareja por IDs externos, fecha cercana o posiciÃ³n dentro de la fase.
+     * Inserta partidos nuevos si la API tiene mÃ¡s cruces que la BD.
      */
     @Transactional
     public SyncResult syncKnockoutMatches() {
@@ -256,7 +277,7 @@ public class WorldCupSyncService {
 
                 for (int index = 0; index < apiMatches.size(); index++) {
                     JsonNode node = apiMatches.get(index);
-                    Optional<Match> found = findKnockoutMatch(node, dbMatches, usedDbIds, index);
+                    Optional<Match> found = findKnockoutMatch(node, dbMatches, usedDbIds, index); // Refactorizado para usar findExistingMatchInDb
 
                     Match match;
                     if (found.isPresent()) {
@@ -283,6 +304,7 @@ public class WorldCupSyncService {
         }
     }
 
+    // Este método ha sido refactorizado para usar findExistingMatchInDb internamente
     private Optional<Match> findKnockoutMatch(
             JsonNode node,
             List<Match> dbMatches,
@@ -291,25 +313,37 @@ public class WorldCupSyncService {
     ) {
         JsonNode homeTeamNode = node.path("homeTeam");
         JsonNode awayTeamNode = node.path("awayTeam");
-        Integer homeExtId = homeTeamNode.path("id").isNumber() ? homeTeamNode.path("id").asInt() : null;
-        Integer awayExtId = awayTeamNode.path("id").isNumber() ? awayTeamNode.path("id").asInt() : null;
-        LocalDateTime matchDateApi = parseUtcDate(node.path("utcDate").asText());
 
-        if (homeExtId != null && awayExtId != null) {
-            for (Match candidate : dbMatches) {
-                if (usedDbIds.contains(candidate.getId())) continue;
-                if (homeExtId.equals(candidate.getHomeTeamExternalId())
-                        && awayExtId.equals(candidate.getAwayTeamExternalId())) {
-                    return Optional.of(candidate);
-                }
-            }
+        // Crear un objeto Match temporal a partir del nodo de la API para la comparación
+        Match apiMatchCandidate = new Match();
+        if (isTeamKnown(homeTeamNode)) {
+            apiMatchCandidate.setHomeTeam(translateTeamName(homeTeamNode.path("name").asText("")));
+            apiMatchCandidate.setHomeTeamExternalId(homeTeamNode.path("id").isNumber() ? homeTeamNode.path("id").asInt() : null);
+        }
+        if (isTeamKnown(awayTeamNode)) {
+            apiMatchCandidate.setAwayTeam(translateTeamName(awayTeamNode.path("name").asText("")));
+            apiMatchCandidate.setAwayTeamExternalId(awayTeamNode.path("id").isNumber() ? awayTeamNode.path("id").asInt() : null);
+        }
+        apiMatchCandidate.setMatchDate(parseUtcDate(node.path("utcDate").asText()));
+        apiMatchCandidate.setPhase(apiStageToPhase(node.path("stage").asText(""))); // Asegurar que la fase esté seteada
+
+        // Filtrar dbMatches para incluir solo aquellos que no han sido usados en este pase de sincronización
+        List<Match> availableDbMatches = dbMatches.stream()
+                .filter(m -> !usedDbIds.contains(m.getId()))
+                .toList();
+
+        // Usar el método general findExistingMatchInDb
+        Optional<Match> foundByContent = findExistingMatchInDb(apiMatchCandidate, availableDbMatches);
+        if (foundByContent.isPresent()) {
+            return foundByContent;
         }
 
+        // Fallback a la proximidad de la fecha (lógica original)
         Match closest = null;
         long closestDiffHours = Long.MAX_VALUE;
-        for (Match candidate : dbMatches) {
-            if (usedDbIds.contains(candidate.getId()) || candidate.getMatchDate() == null) continue;
-            long diffHours = Duration.between(candidate.getMatchDate(), matchDateApi).abs().toHours();
+        for (Match candidate : availableDbMatches) {
+            if (candidate.getMatchDate() == null) continue;
+            long diffHours = Duration.between(candidate.getMatchDate(), apiMatchCandidate.getMatchDate()).abs().toHours();
             if (diffHours <= 24 && diffHours < closestDiffHours) {
                 closest = candidate;
                 closestDiffHours = diffHours;
@@ -319,11 +353,9 @@ public class WorldCupSyncService {
             return Optional.of(closest);
         }
 
-        List<Match> unused = dbMatches.stream()
-                .filter(m -> !usedDbIds.contains(m.getId()))
-                .toList();
-        if (index < unused.size()) {
-            return Optional.of(unused.get(index));
+        // Fallback al índice (lógica original, para cuando no se encuentra otra coincidencia)
+        if (index < availableDbMatches.size()) {
+            return Optional.of(availableDbMatches.get(index));
         }
 
         return Optional.empty();
@@ -361,9 +393,28 @@ public class WorldCupSyncService {
         if ("FINISHED".equals(status)) {
             JsonNode fullTime = node.path("score").path("fullTime");
             if (fullTime.path("home").isNumber() && fullTime.path("away").isNumber()) {
-                match.setHomeScore(fullTime.path("home").asInt());
-                match.setAwayScore(fullTime.path("away").asInt());
-                match.setFinished(true);
+                int fullTimeHome = fullTime.path("home").asInt();
+                int fullTimeAway = fullTime.path("away").asInt();
+
+                // Descontar goles del tiempo extra para obtener los 90 minutos reales
+                JsonNode extraTime = node.path("score").path("extraTime");
+                int etHome = 0;
+                int etAway = 0;
+                if (extraTime.path("home").isNumber() && extraTime.path("away").isNumber()) {
+                    etHome = extraTime.path("home").asInt();
+                    etAway = extraTime.path("away").asInt();
+                    match.setHomeExtraTimeScore(etHome);
+                    match.setAwayExtraTimeScore(etAway);
+                }
+
+                match.setHomeScore(fullTimeHome - etHome);
+                match.setAwayScore(fullTimeAway - etAway);
+            }
+            match.setFinished(true);
+            JsonNode penalties = node.path("score").path("penalties");
+            if (penalties.path("home").isNumber() && penalties.path("away").isNumber()) {
+                match.setHomePenaltyScore(penalties.path("home").asInt());
+                match.setAwayPenaltyScore(penalties.path("away").asInt());
             }
         }
     }
@@ -433,8 +484,27 @@ public class WorldCupSyncService {
                 match.setFinished(true);
                 if (!node.path("score").path("fullTime").isMissingNode()) {
                     JsonNode fullTime = node.path("score").path("fullTime");
-                    match.setHomeScore(fullTime.path("home").isNumber() ? fullTime.path("home").asInt() : null);
-                    match.setAwayScore(fullTime.path("away").isNumber() ? fullTime.path("away").asInt() : null);
+                    Integer ftHome = fullTime.path("home").isNumber() ? fullTime.path("home").asInt() : null;
+                    Integer ftAway = fullTime.path("away").isNumber() ? fullTime.path("away").asInt() : null;
+
+                    // Descontar goles de ET para obtener resultado de 90 minutos
+                    JsonNode extraTime = node.path("score").path("extraTime");
+                    int etHome = 0;
+                    int etAway = 0;
+                    if (extraTime.path("home").isNumber() && extraTime.path("away").isNumber()) {
+                        etHome = extraTime.path("home").asInt();
+                        etAway = extraTime.path("away").asInt();
+                        match.setHomeExtraTimeScore(etHome);
+                        match.setAwayExtraTimeScore(etAway);
+                    }
+
+                    match.setHomeScore(ftHome != null ? ftHome - etHome : null);
+                    match.setAwayScore(ftAway != null ? ftAway - etAway : null);
+                }
+                JsonNode penalties = node.path("score").path("penalties");
+                if (penalties.path("home").isNumber() && penalties.path("away").isNumber()) {
+                    match.setHomePenaltyScore(penalties.path("home").asInt());
+                    match.setAwayPenaltyScore(penalties.path("away").asInt());
                 }
             }
 
@@ -649,6 +719,37 @@ public class WorldCupSyncService {
         map.put("SRB", "https://flagcdn.com/w80/rs.png");
         map.put("TUR", "https://flagcdn.com/w80/tr.png");
         return Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * Busca un partido existente en la base de datos que coincida con un partido de la API.
+     * Prioriza IDs externos, luego nombres de equipos y fecha.
+     * @param apiMatch El objeto Match construido a partir de los datos de la API.
+     * @param dbMatches La lista de partidos existentes en la base de datos para comparar.
+     * @return Un Optional que contiene el Match existente si se encuentra, o vacío.
+     */
+    private Optional<Match> findExistingMatchInDb(Match apiMatch, List<Match> dbMatches) {
+        // 1. Intentar encontrar por IDs externos (más fiable)
+        if (apiMatch.getHomeTeamExternalId() != null && apiMatch.getAwayTeamExternalId() != null) {
+            for (Match dbMatch : dbMatches) {
+                if (apiMatch.getHomeTeamExternalId().equals(dbMatch.getHomeTeamExternalId()) &&
+                    apiMatch.getAwayTeamExternalId().equals(dbMatch.getAwayTeamExternalId())) {
+                    return Optional.of(dbMatch);
+                }
+            }
+        }
+        // 2. Fallback: intentar por nombres de equipos y fecha (para partidos creados manualmente sin IDs externos)
+        if (apiMatch.getHomeTeam() != null && apiMatch.getAwayTeam() != null && apiMatch.getMatchDate() != null) {
+            for (Match dbMatch : dbMatches) {
+                if (dbMatch.getHomeTeam() != null && dbMatch.getAwayTeam() != null && dbMatch.getMatchDate() != null &&
+                    apiMatch.getHomeTeam().equalsIgnoreCase(dbMatch.getHomeTeam()) &&
+                    apiMatch.getAwayTeam().equalsIgnoreCase(dbMatch.getAwayTeam()) &&
+                    apiMatch.getMatchDate().toLocalDate().equals(dbMatch.getMatchDate().toLocalDate())) {
+                    return Optional.of(dbMatch);
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     public record SyncResult(boolean success, String message) {

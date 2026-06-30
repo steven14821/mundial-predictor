@@ -43,7 +43,21 @@
                 Estado
             </span>
             <div th:if="${match.finished}" class="m-match-final-score">
+                <!-- Score de 90min / tiempo extra -->
                 <span class="m-mono" th:text="${match.homeScore + ' - ' + match.awayScore}">0 - 0</span>
+                <!-- Penales si los hubo -->
+                <div th:if="${match.hasPenalties()}" class="m-match-penalties">
+                    <span class="m-match-pen-label">Penales:</span>
+                    <span class="m-mono" th:classappend="${match.homeWinner} ? 'm-pen-winner' : ''"
+                          th:text="${match.homeTeam + ' ' + match.homePenaltyScore}">Local 0</span>
+                    <span> – </span>
+                    <span class="m-mono" th:classappend="${match.awayWinner} ? 'm-pen-winner' : ''"
+                          th:text="${match.awayPenaltyScore + ' ' + match.awayTeam}">0 Visitante</span>
+                </div>
+                <!-- Quién avanzó -->
+                <div th:if="${match.winner != null}" class="m-match-winner-label">
+                    Avanzó: <strong th:text="${match.winner}">Equipo</strong>
+                </div>
             </div>
             <div th:unless="${match.finished}" class="m-match-pending">
                 Pendiente
@@ -230,16 +244,16 @@
                     </div>
                 </div>
                 <div class="m-duel-prediction" th:with="prediction=${predictionsByUser[player.id.toString()]}">
-                    <!-- Si tiene predicción y es visible -->
-                    <span class="m-mono" th:if="${prediction != null and (player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
-                          th:text="${prediction.predictedHomeScore + ' - ' + prediction.predictedAwayScore}">
-                        0 - 0
-                    </span>
-                    <!-- Si tiene predicción pero está oculta -->
-                    <span th:if="${prediction != null and !(player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
-                          style="font-style: italic; color: var(--color-text-light); opacity: 0.7; font-size: 0.9rem;">
-                        oculto <i class="bi bi-lock-fill"></i>
-                    </span>
+                                    <!-- Si tiene predicción y es visible -->
+                                    <span class="m-mono" th:if="${prediction != null and (player.id == currentUser.id or currentUser.role.name() == 'ADMIN' or match.isLocked() or myPrediction != null)}"
+                                          th:text="${prediction.predictedHomeScore + ' - ' + prediction.predictedAwayScore}">
+                                        0 - 0
+                                    </span>
+                                    <!-- Si tiene predicción pero está oculta (partido abierto y aún no predije) -->
+                                    <span th:if="${prediction != null and player.id != currentUser.id and currentUser.role.name() != 'ADMIN' and !match.isLocked() and myPrediction == null}"
+                                          style="font-style: italic; color: var(--color-text-light); opacity: 0.7; font-size: 0.9rem;">
+                                        oculto <i class="bi bi-lock-fill"></i>
+                                    </span>
                     <!-- Si no tiene predicción -->
                     <span class="m-no-pred" th:unless="${prediction != null}">
                         Sin prediccion
