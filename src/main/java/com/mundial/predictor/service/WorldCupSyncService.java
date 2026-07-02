@@ -93,8 +93,8 @@ public class WorldCupSyncService {
                     match.setPhase(fetched.getPhase());
                     match.setHomeTeamExternalId(fetched.getHomeTeamExternalId()); // Asegurar que los IDs externos se actualicen
                     match.setAwayTeamExternalId(fetched.getAwayTeamExternalId()); // Asegurar que los IDs externos se actualicen
-                    // Solo actualizar resultado si el partido terminÃ³
-                    if (fetched.isFinished()) {
+                    // Solo actualizar resultado si el partido terminÃ³ y no estaba ya terminado
+                    if (fetched.isFinished() && !match.isFinished()) {
                         match.setFinished(true);
                         match.setHomeScore(fetched.getHomeScore());
                         match.setAwayScore(fetched.getAwayScore());
@@ -191,6 +191,9 @@ public class WorldCupSyncService {
                 if (existing.isEmpty()) continue; // partido no está en la BD, ignorar
 
                 Match match = existing.get();
+                if (match.isFinished()) {
+                    continue; // No actualizar si ya está terminado
+                }
                 boolean wasFinished = match.isFinished();
 
                 match.setHomeScore(homeScore);
@@ -390,7 +393,7 @@ public class WorldCupSyncService {
         }
 
         String status = node.path("status").asText("");
-        if ("FINISHED".equals(status)) {
+        if ("FINISHED".equals(status) && !match.isFinished()) {
             JsonNode fullTime = node.path("score").path("fullTime");
             if (fullTime.path("home").isNumber() && fullTime.path("away").isNumber()) {
                 int fullTimeHome = fullTime.path("home").asInt();

@@ -111,17 +111,10 @@ public class AdminController {
      */
     @PostMapping("/matches/fix-scores")
     public String fixScores(RedirectAttributes ra) {
-        WorldCupSyncService.SyncResultWithMatches result = worldCupSyncService.syncResults();
-
-        if (!result.success()) {
-            ra.addFlashAttribute("error", "[Error] " + result.message());
-            return "redirect:/admin/matches";
-        }
-
         // Recalcular puntos de TODOS los partidos terminados (no solo los recién terminados)
         predictionService.recalculateAllTotals();
 
-        ra.addFlashAttribute("success", "[OK] Scores corregidos y puntos recalculados para todos los partidos.");
+        ra.addFlashAttribute("success", "[OK] Puntos recalculados para todos los partidos.");
         return "redirect:/admin/matches";
     }
 
